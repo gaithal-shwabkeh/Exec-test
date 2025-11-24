@@ -1330,6 +1330,8 @@
         .day-column { border-right: 1px solid var(--border-color); padding: 5px; }
         .day-column:last-child { border-right: none; }
         .day-column.weekend { background-color: rgba(0, 0, 0, 0.2); border-radius: 5px; }
+        .day-column.past-week { opacity: 0.4; }
+        .day-column.past-week .event { opacity: 0.5; }
         .day-header {
             text-align: center;
             font-weight: 600;
@@ -2902,6 +2904,7 @@
             <p id="event-modal-time">Event Time</p>
             <p id="event-modal-details">Event Details</p>
             <div class="event-actions">
+                <button id="edit-event-btn"><i class="fas fa-edit"></i> Edit Meeting</button>
                 <button id="summarize-event-btn"><i class="fas fa-align-left"></i> Summarize</button>
                 <button id="prepare-event-btn"><i class="fas fa-clipboard-check"></i> Consult for Preparation</button>
             </div>
@@ -3339,12 +3342,12 @@
                         const time = eventEl.dataset.eventTime;
                         const details = eventEl.dataset.eventDetails;
                         const dateStr = eventEl.dataset.date;
-                        openEventModal(title, time, details, dateStr);
+                        openEventModal(title, time, details, dateStr, eventEl);
                     });
                  });
              }
 
-            function openEventModal(title, time, details, dateStr = null) {
+            function openEventModal(title, time, details, dateStr = null, eventElement = null) {
                  const titleEl = document.getElementById('event-modal-title');
                 const timeEl = document.getElementById('event-modal-time');
                 const detailsEl = document.getElementById('event-modal-details');
@@ -3353,6 +3356,7 @@
                 if (timeEl) timeEl.textContent = time;
                 if (detailsEl) detailsEl.textContent = details;
 
+                const editBtn = document.getElementById('edit-event-btn');
                 const summarizeBtn = document.getElementById('summarize-event-btn');
                 const prepareBtn = document.getElementById('prepare-event-btn');
 
@@ -3367,6 +3371,15 @@
                 }
 
                 // Clone and replace buttons to remove old event listeners
+                if (editBtn) {
+                    const newEditBtn = editBtn.cloneNode(true);
+                    editBtn.parentNode.replaceChild(newEditBtn, editBtn);
+                    
+                    newEditBtn.addEventListener('click', () => {
+                        openEditEventModal(title, time, details, dateStr, eventElement);
+                    });
+                }
+                
                 const newSummarizeBtn = summarizeBtn.cloneNode(true);
                 summarizeBtn.parentNode.replaceChild(newSummarizeBtn, summarizeBtn);
                 const newPrepareBtn = prepareBtn.cloneNode(true);
@@ -3391,6 +3404,75 @@
                 });
 
                 openModal(eventModal);
+            }
+            
+            function openEditEventModal(title, time, details, dateStr, eventElement) {
+                closeModal(eventModal);
+                
+                // Create edit modal content
+                const editModal = document.createElement('div');
+                editModal.className = 'modal';
+                editModal.id = 'edit-event-modal';
+                editModal.innerHTML = `
+                    <div class="modal-content">
+                        <span class="close-button">×</span>
+                        <h3>Edit Meeting</h3>
+                        <div style="margin: 20px 0;">
+                            <label style="display: block; margin-bottom: 5px;">Title:</label>
+                            <input type="text" id="edit-title" value="${title}" style="width: 100%; padding: 8px; margin-bottom: 15px;">
+                            
+                            <label style="display: block; margin-bottom: 5px;">Date:</label>
+                            <input type="date" id="edit-date" value="${dateStr}" style="width: 100%; padding: 8px; margin-bottom: 15px;">
+                            
+                            <label style="display: block; margin-bottom: 5px;">Time:</label>
+                            <input type="text" id="edit-time" value="${time}" placeholder="e.g., 3:00 PM" style="width: 100%; padding: 8px; margin-bottom: 15px;">
+                            
+                            <label style="display: block; margin-bottom: 5px;">Details:</label>
+                            <textarea id="edit-details" style="width: 100%; padding: 8px; min-height: 100px;">${details}</textarea>
+                        </div>
+                        <div class="event-actions">
+                            <button id="save-event-btn"><i class="fas fa-save"></i> Save Changes</button>
+                            <button id="cancel-edit-btn"><i class="fas fa-times"></i> Cancel</button>
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(editModal);
+                
+                const closeBtn = editModal.querySelector('.close-button');
+                const cancelBtn = editModal.querySelector('#cancel-edit-btn');
+                const saveBtn = editModal.querySelector('#save-event-btn');
+                
+                const closeEditModal = () => {
+                    document.body.removeChild(editModal);
+                };
+                
+                closeBtn.addEventListener('click', closeEditModal);
+                cancelBtn.addEventListener('click', closeEditModal);
+                
+                saveBtn.addEventListener('click', () => {
+                    const newTitle = document.getElementById('edit-title').value;
+                    const newDate = document.getElementById('edit-date').value;
+                    const newTime = document.getElementById('edit-time').value;
+                    const newDetails = document.getElementById('edit-details').value;
+                    
+                    if (eventElement) {
+                        eventElement.setAttribute('data-event-title', newTitle);
+                        eventElement.setAttribute('data-event-time', newTime);
+                        eventElement.setAttribute('data-event-details', newDetails);
+                        eventElement.setAttribute('data-date', newDate);
+                    }
+                    
+                    // Refresh all calendar views
+                    renderWeekView();
+                    renderDesktopMonthCalendar();
+                    renderTodayView();
+                    initMobileCalendar();
+                    updateTodaysAgendaPanel();
+                    
+                    closeEditModal();
+                });
+                
+                openModal(editModal);
             }
 
             function switchToAgentAndSendPrompt(prompt, targetPersonaId = null) {
@@ -3726,232 +3808,11 @@
             }
 
             // Function to add a meeting/event to the agenda
-            function addMeetingToAgenda(title, time, date, details = '', topic = '') {
-                const eventContainer = document.getElementById('event-data-container');
-                if (!eventContainer) return false;
-                
-                // Create new event element
-                const eventDiv = document.createElement('div');
-                eventDiv.className = 'event';
-                eventDiv.setAttribute('data-event-title', title);
-                eventDiv.setAttribute('data-event-time', time);
-                eventDiv.setAttribute('data-event-details', details);
-                eventDiv.setAttribute('data-date', date);
-                if (topic) {
-                    eventDiv.setAttribute('data-topic', topic);
-                }
-                
-                eventContainer.appendChild(eventDiv);
-                
-                // Refresh calendar views
-                renderWeekView();
-                renderDesktopMonthCalendar();
-                renderTodayView();
-                initMobileCalendar();
-                updateTodaysAgendaPanel();
-                
-                return true;
-            }
-            
-            // Function to parse meeting creation request
-            function parseMeetingRequest(message) {
-                const lowerMessage = message.toLowerCase();
-                
-                // Check if it's a meeting creation request
-                const meetingKeywords = ['add meeting', 'schedule meeting', 'book meeting', 'create meeting', 'add to agenda', 'schedule', 'book'];
-                const isMeetingRequest = meetingKeywords.some(keyword => lowerMessage.includes(keyword));
-                
-                if (!isMeetingRequest) return null;
-                
-                // Extract time (look for patterns like "at 2pm", "at 14:00", "at 2:00 PM", etc.)
-                const timePatterns = [
-                    { pattern: /at\s+(\d{1,2}):(\d{2})\s*(am|pm)/i, hasMinutes: true, periodIndex: 3 },
-                    { pattern: /at\s+(\d{1,2})\s*(am|pm)/i, hasMinutes: false, periodIndex: 2 },
-                    { pattern: /(\d{1,2}):(\d{2})\s*(am|pm)/i, hasMinutes: true, periodIndex: 3 },
-                    { pattern: /(\d{1,2})\s*(am|pm)/i, hasMinutes: false, periodIndex: 2 }
-                ];
-                
-                let time = '';
-                for (const timePattern of timePatterns) {
-                    const match = message.match(timePattern.pattern);
-                    if (match) {
-                        let hours = parseInt(match[1]);
-                        let minutes = 0;
-                        
-                        if (timePattern.hasMinutes && match[2]) {
-                            minutes = parseInt(match[2]) || 0;
-                        }
-                        
-                        const period = (match[timePattern.periodIndex] || '').toUpperCase();
-                        
-                        if (period === 'PM' && hours !== 12) hours += 12;
-                        if (period === 'AM' && hours === 12) hours = 0;
-                        
-                        const hour12 = hours > 12 ? hours - 12 : (hours === 0 ? 12 : hours);
-                        const ampm = hours >= 12 ? 'PM' : 'AM';
-                        time = `${hour12}:${String(minutes).padStart(2, '0')} ${ampm}`;
-                        break;
-                    }
-                }
-                
-                if (!time) {
-                    // Default to current time + 1 hour if no time specified
-                    const defaultTime = new Date(today);
-                    defaultTime.setHours(defaultTime.getHours() + 1);
-                    const hour12 = defaultTime.getHours() > 12 ? defaultTime.getHours() - 12 : (defaultTime.getHours() === 0 ? 12 : defaultTime.getHours());
-                    const ampm = defaultTime.getHours() >= 12 ? 'PM' : 'AM';
-                    time = `${hour12}:${String(defaultTime.getMinutes()).padStart(2, '0')} ${ampm}`;
-                }
-                
-                // Extract date (look for patterns like "on Dec 15", "on 12/15", "tomorrow", "next week", etc.)
-                let date = today.toISOString().split('T')[0]; // Default to today
-                const datePatterns = [
-                    /(?:on|for)\s+(?:the\s+)?(\d{1,2})\/(\d{1,2})/,
-                    /(?:on|for)\s+(?:the\s+)?(\w+)\s+(\d{1,2})/,
-                    /tomorrow/i,
-                    /next\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)/i
-                ];
-                
-                if (lowerMessage.includes('tomorrow')) {
-                    const tomorrow = new Date(today);
-                    tomorrow.setDate(tomorrow.getDate() + 1);
-                    date = tomorrow.toISOString().split('T')[0];
-                } else {
-                    for (const pattern of datePatterns) {
-                        const match = message.match(pattern);
-                        if (match) {
-                            // Simple date parsing - can be enhanced
-                            break;
-                        }
-                    }
-                }
-                
-                // Extract focus area/topic
-                const topicPattern = /(?:for|about|regarding|on)\s+(?:the\s+)?(?:focus\s+area\s+of\s+)?["']?([^"']+)["']?/i;
-                const topicMatch = message.match(topicPattern);
-                let topic = '';
-                if (topicMatch) {
-                    topic = topicMatch[1].trim();
-                }
-                
-                // Extract meeting title (everything before "at" or "on" or use a default)
-                let title = '';
-                const titleMatch = message.match(/^(?:add|schedule|book|create)\s+(?:a\s+)?meeting\s+(?:to\s+)?(?:the\s+)?(?:agenda\s+)?(?:at\s+this\s+time\s+)?(?:for\s+this\s+focus\s+area\s+)?(?:about\s+)?(.+?)(?:\s+at\s+|\s+on\s+|$)/i);
-                if (titleMatch && titleMatch[1]) {
-                    title = titleMatch[1].trim();
-                    // Remove topic if it's in the title
-                    if (topic && title.includes(topic)) {
-                        title = title.replace(new RegExp(topic, 'gi'), '').trim();
-                    }
-                }
-                
-                if (!title) {
-                    title = topic ? `Meeting: ${topic}` : 'New Meeting';
-                }
-                
-                // Extract details
-                const details = topic ? `Meeting regarding ${topic}` : 'Scheduled meeting';
-                
-                return { title, time, date, details, topic };
-            }
-
-            // Store pending meeting data when focus area is needed
-            let pendingMeetingData = null;
 
             async function handleSendMessage() {
                 if (!chatInput) return;
                 const userMessage = chatInput.value.trim();
                 if (!userMessage) return;
-
-                // Check if this is a follow-up response to a focus area question
-                if (pendingMeetingData) {
-                    // Check if user provided a focus area
-                    const focusAreas = Array.from(document.querySelectorAll('.topic-card .topic-title')).map(el => el.textContent);
-                    let matchedTopic = '';
-                    
-                    // Try to match user's response to a focus area
-                    for (const area of focusAreas) {
-                        if (userMessage.toLowerCase().includes(area.toLowerCase()) || area.toLowerCase().includes(userMessage.toLowerCase())) {
-                            matchedTopic = area;
-                            break;
-                        }
-                    }
-                    
-                    if (matchedTopic) {
-                        pendingMeetingData.topic = matchedTopic;
-                        pendingMeetingData.title = pendingMeetingData.title || `Meeting: ${matchedTopic}`;
-                        pendingMeetingData.details = `Meeting regarding ${matchedTopic}`;
-                    } else {
-                        // Use the user's message as the topic if no match found
-                        pendingMeetingData.topic = userMessage;
-                        pendingMeetingData.title = pendingMeetingData.title || `Meeting: ${userMessage}`;
-                        pendingMeetingData.details = `Meeting regarding ${userMessage}`;
-                    }
-                    
-                    const success = addMeetingToAgenda(
-                        pendingMeetingData.title,
-                        pendingMeetingData.time,
-                        pendingMeetingData.date,
-                        pendingMeetingData.details,
-                        pendingMeetingData.topic
-                    );
-                    
-                    if (success) {
-                        displayMessage('user', userMessage);
-                        const dateStr = new Date(pendingMeetingData.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-                        const response = `I've added "${pendingMeetingData.title}" to your agenda for ${dateStr} at ${pendingMeetingData.time}.`;
-                        displayMessage('agent', response, currentPersonaId);
-                        chatHistory.push({ role: 'user', parts: [{ text: userMessage }] });
-                        chatHistory.push({ role: 'model', parts: [{ text: response }] });
-                        pendingMeetingData = null;
-                        chatInput.value = '';
-                        return;
-                    }
-                }
-
-                // Check if user wants to add a meeting
-                const meetingData = parseMeetingRequest(userMessage);
-                if (meetingData) {
-                    // Check if focus area is missing
-                    if (!meetingData.topic) {
-                        displayMessage('user', userMessage);
-                        chatHistory.push({ role: 'user', parts: [{ text: userMessage }] });
-                        
-                        // Store the meeting data for follow-up
-                        pendingMeetingData = meetingData;
-                        
-                        // Get available focus areas
-                        const focusAreas = Array.from(document.querySelectorAll('.topic-card .topic-title')).map(el => el.textContent);
-                        const focusAreasList = focusAreas.length > 0 
-                            ? focusAreas.join(', ')
-                            : 'a focus area';
-                        
-                        const prompt = `What focus area would you like this meeting to focus on? Available focus areas: ${focusAreasList}`;
-                        displayMessage('agent', prompt, currentPersonaId);
-                        chatHistory.push({ role: 'model', parts: [{ text: prompt }] });
-                        chatInput.value = '';
-                        return;
-                    }
-                    
-                    const success = addMeetingToAgenda(
-                        meetingData.title,
-                        meetingData.time,
-                        meetingData.date,
-                        meetingData.details,
-                        meetingData.topic
-                    );
-                    
-                    if (success) {
-                        displayMessage('user', userMessage);
-                        const dateStr = new Date(meetingData.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-                        const response = `I've added "${meetingData.title}" to your agenda for ${dateStr} at ${meetingData.time}.`;
-                        displayMessage('agent', response, currentPersonaId);
-                        chatHistory.push({ role: 'user', parts: [{ text: userMessage }] });
-                        chatHistory.push({ role: 'model', parts: [{ text: response }] });
-                        chatInput.value = '';
-                        return;
-                    }
-                }
 
                 displayMessage('user', userMessage);
                 // Add user message to history *before* calling API
@@ -4422,7 +4283,14 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
                             calendarContainer.querySelectorAll('.agenda-view').forEach(v => v.classList.remove('active'));
                             const targetView = calendarContainer.querySelector(`#${view}-view`);
                             if (targetView) targetView.classList.add('active');
-                            if (view === 'month') { renderDesktopMonthCalendar(); }
+                            if (view === 'month') { 
+                                // When switching to month view from week view, sync month to current week's month
+                                if (previousView === 'week') {
+                                    // Set month to the month of the current week
+                                    currentMonth = new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth(), 1);
+                                }
+                                renderDesktopMonthCalendar(); 
+                            }
                             if (view === 'today') { renderTodayView(); updateWeekHeader(); }
                             if (view === 'week') { 
                                 // When switching to week view from month view, sync week to current month
@@ -4463,7 +4331,14 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
                                 initMobileCalendar(); 
                             }
                             if (view === 'today') { renderTodayView(); updateWeekHeader(); }
-                            if (view === 'month') { renderDesktopMonthCalendar(); }
+                            if (view === 'month') { 
+                                // When switching to month view from week view, sync month to current week's month
+                                if (previousView === 'week') {
+                                    // Set month to the month of the current week
+                                    currentMonth = new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth(), 1);
+                                }
+                                renderDesktopMonthCalendar(); 
+                            }
                         }
                         updateWeekHeader();
                         
@@ -4509,7 +4384,7 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
                      cell.addEventListener('click', () => { 
                          if (eventsByDate.has(dateStr)) { 
                              const firstEvent = eventsByDate.get(dateStr)[0]; 
-                             openEventModal(firstEvent.dataset.eventTitle, firstEvent.dataset.eventTime, firstEvent.dataset.eventDetails, dateStr); 
+                             openEventModal(firstEvent.dataset.eventTitle, firstEvent.dataset.eventTime, firstEvent.dataset.eventDetails, dateStr, firstEvent); 
                          } else if (!isPast) {
                              // Only allow day actions for future/current days
                              openDayActionModal(dateStr); 
@@ -4549,7 +4424,7 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
                          const eventClone = eventEl.cloneNode(true); 
                          eventClone.addEventListener('click', () => { 
                              const dateStr = eventClone.dataset.date;
-                             openEventModal(eventClone.dataset.eventTitle, eventClone.dataset.eventTime, eventClone.dataset.eventDetails, dateStr); 
+                             openEventModal(eventClone.dataset.eventTitle, eventClone.dataset.eventTime, eventClone.dataset.eventDetails, dateStr, eventClone); 
                          }); 
                          todayList.appendChild(eventClone); 
                      }); 
@@ -4601,8 +4476,14 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
                     const todayStr = `${todayYear}-${todayMonth}-${todayDay}`;
                     const isToday = dateStr === todayStr;
                     
+                    // Check if this week is in the past (check if the week's last day is before today)
+                    const weekEndDate = new Date(currentWeekStart);
+                    weekEndDate.setDate(currentWeekStart.getDate() + 6);
+                    const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                    const isPastWeek = weekEndDate < todayDateOnly;
+                    
                     const dayColumn = document.createElement('div');
-                    dayColumn.className = `day-column${isWeekend ? ' weekend' : ''}${isToday ? ' today' : ''}`;
+                    dayColumn.className = `day-column${isWeekend ? ' weekend' : ''}${isToday ? ' today' : ''}${isPastWeek ? ' past-week' : ''}`;
                     
                     const dayHeader = document.createElement('div');
                     dayHeader.className = 'day-header';
@@ -4628,7 +4509,7 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
                             `;
                             
                             eventDiv.addEventListener('click', () => {
-                                openEventModal(eventEl.dataset.eventTitle, eventEl.dataset.eventTime, eventEl.dataset.eventDetails, dateStr);
+                                openEventModal(eventEl.dataset.eventTitle, eventEl.dataset.eventTime, eventEl.dataset.eventDetails, dateStr, eventEl);
                             });
                             dayColumn.appendChild(eventDiv);
                         });
@@ -4738,7 +4619,7 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
                         monthGrid.appendChild(dayCell);
                     }
                 }
-                function renderEvents(dateStr) { const dayEvents = allEvents.filter(e => e.dataset.date === dateStr); if (dayEvents.length === 0) { agendaEvents.innerHTML = '<p style="opacity: 0.7; text-align: center; padding: 20px;">No events scheduled for this day</p>'; return; } agendaEvents.innerHTML = ''; dayEvents.forEach(eventEl => { const eventDiv = document.createElement('div'); eventDiv.className = 'event'; if (eventEl.classList.contains('event-milestone')) { eventDiv.classList.add('event-milestone'); } eventDiv.innerHTML = `<div class="event-time">${eventEl.dataset.eventTime}</div> <div class="event-title">${eventEl.dataset.eventTitle}</div>`; eventDiv.addEventListener('click', () => { openEventModal(eventEl.dataset.eventTitle, eventEl.dataset.eventTime, eventEl.dataset.eventDetails, dateStr); }); agendaEvents.appendChild(eventDiv); }); }
+                function renderEvents(dateStr) { const dayEvents = allEvents.filter(e => e.dataset.date === dateStr); if (dayEvents.length === 0) { agendaEvents.innerHTML = '<p style="opacity: 0.7; text-align: center; padding: 20px;">No events scheduled for this day</p>'; return; } agendaEvents.innerHTML = ''; dayEvents.forEach(eventEl => { const eventDiv = document.createElement('div'); eventDiv.className = 'event'; if (eventEl.classList.contains('event-milestone')) { eventDiv.classList.add('event-milestone'); } eventDiv.innerHTML = `<div class="event-time">${eventEl.dataset.eventTime}</div> <div class="event-title">${eventEl.dataset.eventTitle}</div>`; eventDiv.addEventListener('click', () => { openEventModal(eventEl.dataset.eventTitle, eventEl.dataset.eventTime, eventEl.dataset.eventDetails, dateStr, eventEl); }); agendaEvents.appendChild(eventDiv); }); }
                 renderCalendar(); renderEvents(mobileSelectedDate.toISOString().split('T')[0]);
             }
 
@@ -4884,6 +4765,19 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
                      currentWeekStart.setDate(currentWeekStart.getDate() + (direction * 7));
                      renderWeekView();
                      initMobileCalendar();
+                     
+                     // Sync month view to the month of the current week
+                     const weekMonth = new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth(), 1);
+                     if (weekMonth.getTime() !== currentMonth.getTime()) {
+                         currentMonth = weekMonth;
+                         // Only update month calendar if month view is active
+                         const activeView = document.querySelector('.view-btn.active, .mobile-view-btn.active');
+                         const view = activeView ? activeView.dataset.view : 'week';
+                         if (view === 'month') {
+                             renderDesktopMonthCalendar();
+                         }
+                         updateCalendarHeaders();
+                     }
                  }
                  
                  function navigateMonth(direction) {
@@ -4909,6 +4803,9 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
                          renderWeekView();
                          initMobileCalendar();
                      }
+                     
+                     // Update calendar headers
+                     updateCalendarHeaders();
                  }
                  
                  // Function to update button states based on active view (make it accessible)
