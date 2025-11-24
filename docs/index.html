@@ -2687,11 +2687,7 @@
                 <!-- Desktop Calendar View -->
                 <div class="desktop-calendar">
                     <div class="agenda-header">
-                        <div class="calendar-title">
-                            <button id="calendar-prev-year" aria-label="Previous year"><i class="fas fa-chevron-left"></i></button>
-                            <h2 id="desktop-calendar-title"></h2>
-                            <button id="calendar-next-year" aria-label="Next year"><i class="fas fa-chevron-right"></i></button>
-                        </div>
+                        <h2>October 2025</h2>
                         <div class="view-toggle">
                             <button class="view-btn" data-view="today">Today</button>
                             <button class="view-btn active" data-view="week">Week</button>
@@ -2727,12 +2723,8 @@
                 </div>
                 <!-- Mobile Calendar View -->
                 <div class="mobile-calendar">
-                    <div class="agenda-header">
-                        <div class="calendar-title">
-                            <button id="mobile-prev-year" aria-label="Previous year"><i class="fas fa-chevron-left"></i></button>
-                            <h2 id="mobile-calendar-title"></h2>
-                            <button id="mobile-next-year" aria-label="Next year"><i class="fas fa-chevron-right"></i></button>
-                        </div>
+                     <div class="agenda-header">
+                        <h2 id="mobile-calendar-title">October 2025</h2>
                         <div class="view-toggle">
                             <button class="mobile-view-btn" data-view="today">Today</button>
                             <button class="mobile-view-btn active" data-view="week">Week</button>
@@ -2875,26 +2867,6 @@
             let selectedText = '';
             // Set "today" to the specified context date: Wednesday, Oct 22, 2025
             const today = new Date('2025-10-22T09:23:00+03:00');
-            let calendarCursor = new Date(today);
-
-            function updateCalendarTitles() {
-                const label = calendarCursor.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-                const desktopTitle = document.getElementById('desktop-calendar-title');
-                const mobileTitle = document.getElementById('mobile-calendar-title');
-                if (desktopTitle) desktopTitle.textContent = label;
-                if (mobileTitle) mobileTitle.textContent = label;
-            }
-
-            function adjustCalendarYear(delta) {
-                calendarCursor.setFullYear(calendarCursor.getFullYear() + delta);
-                refreshCalendarViews();
-            }
-
-            function refreshCalendarViews() {
-                updateCalendarTitles();
-                renderDesktopMonthCalendar();
-                initMobileCalendar();
-            }
 
             // --- DOM Elements ---
             const mainPersonaImage = document.getElementById('mainPersonaImage');
@@ -2920,15 +2892,6 @@
             const messageModalTitle = document.getElementById("message-modal-title"); // New
             const messageModalText = document.getElementById("message-modal-text"); // New
             const copySummaryBtn = document.getElementById("copy-summary-btn"); // Copy button
-            const prevYearBtn = document.getElementById('calendar-prev-year');
-            const nextYearBtn = document.getElementById('calendar-next-year');
-            const mobilePrevYearBtn = document.getElementById('mobile-prev-year');
-            const mobileNextYearBtn = document.getElementById('mobile-next-year');
-
-            prevYearBtn?.addEventListener('click', () => adjustCalendarYear(-1));
-            nextYearBtn?.addEventListener('click', () => adjustCalendarYear(1));
-            mobilePrevYearBtn?.addEventListener('click', () => adjustCalendarYear(-1));
-            mobileNextYearBtn?.addEventListener('click', () => adjustCalendarYear(1));
 
             // --- Function Definitions ---
 
@@ -4108,9 +4071,8 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
                 const allEvents = Array.from(document.querySelectorAll('.event[data-date]'));
                 const eventsByDate = new Map();
                 allEvents.forEach(e => { const date = e.dataset.date; if (!eventsByDate.has(date)) { eventsByDate.set(date, []); } eventsByDate.get(date).push(e); });
-                const year = calendarCursor.getFullYear();
-                const month = calendarCursor.getMonth();
-                const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                const year = today.getFullYear(); const month = today.getMonth();
+                const todayDateOnly = new Date(year, month, today.getDate());
                 const firstDayOfMonth = new Date(year, month, 1); const daysInMonth = new Date(year, month + 1, 0).getDate(); const startingDay = firstDayOfMonth.getDay();
                 monthGrid.innerHTML = '';
                 ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach((day, index) => { const isWeekend = index === 5 || index === 6; monthGrid.innerHTML += `<div class="month-day-header ${isWeekend ? 'weekend' : ''}">${day}</div>`; });
@@ -4135,30 +4097,7 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
             function initMobileCalendar() {
                  const monthGrid = document.getElementById('mobile-month-grid'); const agendaEvents = document.getElementById('mobile-agenda-events'); if (!monthGrid || !agendaEvents) return;
                 const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']; let selectedDate = today; const allEvents = Array.from(document.querySelectorAll('.event[data-date]')); const eventDates = new Set(allEvents.map(e => e.dataset.date));
-                function renderCalendar() { monthGrid.innerHTML = ''; dayNames.forEach(day => { const dayNameEl = document.createElement('div'); dayNameEl.className = 'day-name'; dayNameEl.textContent = day; monthGrid.appendChild(dayNameEl); }); 
-                const currentMonth = calendarCursor.getMonth();
-                const currentYear = calendarCursor.getFullYear();
-                const startDate = new Date(currentYear, currentMonth, 1);
-                startDate.setDate(startDate.getDate() - startDate.getDay()); // start week on Sunday
-
-                for (let i = 0; i < 42; i++) {
-                    const cellDate = new Date(startDate);
-                    cellDate.setDate(startDate.getDate() + i);
-                    const dayCell = document.createElement('div');
-                    dayCell.className = 'day-cell';
-                    dayCell.textContent = cellDate.getDate();
-                    if (cellDate.getMonth() !== currentMonth) dayCell.classList.add('other-month');
-                    const dateStr = cellDate.toISOString().split('T')[0];
-                    if (dateStr === today.toISOString().split('T')[0]) dayCell.classList.add('today');
-                    if (dateStr === selectedDate.toISOString().split('T')[0]) dayCell.classList.add('selected');
-                    if (eventDates.has(dateStr)) dayCell.classList.add('has-event');
-                    dayCell.addEventListener('click', () => {
-                        selectedDate = cellDate;
-                        renderCalendar();
-                        renderEvents(dateStr);
-                    });
-                    monthGrid.appendChild(dayCell);
-                }}
+                function renderCalendar() { monthGrid.innerHTML = ''; dayNames.forEach(day => { const dayNameEl = document.createElement('div'); dayNameEl.className = 'day-name'; dayNameEl.textContent = day; monthGrid.appendChild(dayNameEl); }); for (let day = 19; day <= 25; day++) { const dayCell = document.createElement('div'); dayCell.className = 'day-cell'; dayCell.textContent = day; const currentDayDate = new Date(today.getFullYear(), today.getMonth(), day); const dateStr = currentDayDate.toISOString().split('T')[0]; if (day === today.getDate()) { dayCell.classList.add('today'); } if (dateStr === selectedDate.toISOString().split('T')[0]) { dayCell.classList.add('selected'); } if (eventDates.has(dateStr)) { dayCell.classList.add('has-event'); } dayCell.addEventListener('click', () => { selectedDate = currentDayDate; renderCalendar(); renderEvents(dateStr); }); monthGrid.appendChild(dayCell); } }
                 function renderEvents(dateStr) { const dayEvents = allEvents.filter(e => e.dataset.date === dateStr); if (dayEvents.length === 0) { agendaEvents.innerHTML = '<p style="opacity: 0.7; text-align: center; padding: 20px;">No events scheduled for this day</p>'; return; } agendaEvents.innerHTML = ''; dayEvents.forEach(eventEl => { const eventDiv = document.createElement('div'); eventDiv.className = 'event'; if (eventEl.classList.contains('event-milestone')) { eventDiv.classList.add('event-milestone'); } eventDiv.innerHTML = `<div class="event-time">${eventEl.dataset.eventTime}</div> <div class="event-title">${eventEl.dataset.eventTitle}</div>`; eventDiv.addEventListener('click', () => { openEventModal(eventEl.dataset.eventTitle, eventEl.dataset.eventTime, eventEl.dataset.eventDetails); }); agendaEvents.appendChild(eventDiv); }); }
                 renderCalendar(); renderEvents(selectedDate.toISOString().split('T')[0]);
             }
@@ -4273,7 +4212,8 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
             updatePersonaUI(currentPersonaId, true);
             updateTodaysAgendaPanel();
             setupAgendaInteractions();
-            refreshCalendarViews();
+            initMobileCalendar();
+            renderDesktopMonthCalendar();
             renderTodayView();
             
             // Initialize UI based on mode (start in single agent mode)
@@ -4319,4 +4259,3 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
 
 
 </body></html>
-
