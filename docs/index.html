@@ -1284,40 +1284,38 @@
         .month-day-events {
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 3px;
             flex-grow: 1;
-            margin-top: 4px;
-            overflow-y: auto;
-            padding-right: 4px;
+            overflow: hidden;
         }
 
-        .month-event-entry {
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-left: 3px solid var(--primary-blue);
-            border-radius: 6px;
-            padding: 4px 6px;
-            background: rgba(255, 255, 255, 0.04);
-            font-size: 0.75rem;
+        .month-event-dot {
+            width: 100%;
+            min-height: 18px;
+            background: var(--primary-blue);
+            border-radius: 2px;
+            font-size: 0.65rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            position: relative;
             display: flex;
-            flex-direction: column;
-            gap: 2px;
+            align-items: center;
+            padding: 2px 4px;
+            cursor: pointer;
         }
 
-        .month-event-entry.milestone {
-            border-left-color: #ffc107;
-            background: rgba(255, 193, 7, 0.12);
+        .month-event-dot.milestone {
+            background: #ffc107;
         }
-
-        .month-event-entry .event-time {
-            font-size: 0.7rem;
-            font-weight: 600;
-            color: var(--primary-blue);
-        }
-
-        .month-event-entry .event-title {
-            font-size: 0.75rem;
-            font-weight: 500;
-            color: var(--text-dark);
+        
+        .month-event-dot-text {
+            font-size: 0.65rem;
+            color: white;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
             line-height: 1.2;
         }
 
@@ -4427,21 +4425,16 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
                     
                     const eventsForDate = eventsByDate.get(dateStr) || [];
                     eventsForDate.forEach(eventEl => {
-                        const eventEntry = document.createElement('div');
-                        eventEntry.className = `month-event-entry${eventEl.classList.contains('event-milestone') ? ' milestone' : ''}`;
+                        const eventDot = document.createElement('div');
+                        eventDot.className = `month-event-dot${eventEl.classList.contains('event-milestone') ? ' milestone' : ''}`;
                         
-                        const timeDiv = document.createElement('div');
-                        timeDiv.className = 'event-time';
-                        timeDiv.textContent = eventEl.dataset.eventTime || '';
+                        const textSpan = document.createElement('span');
+                        textSpan.className = 'month-event-dot-text';
+                        textSpan.textContent = `${eventEl.dataset.eventTime || ''} ${eventEl.dataset.eventTitle || ''}`.trim();
                         
-                        const titleDiv = document.createElement('div');
-                        titleDiv.className = 'event-title';
-                        titleDiv.textContent = eventEl.dataset.eventTitle || '';
+                        eventDot.appendChild(textSpan);
                         
-                        eventEntry.appendChild(timeDiv);
-                        eventEntry.appendChild(titleDiv);
-                        
-                        eventEntry.addEventListener('click', (e) => {
+                        eventDot.addEventListener('click', (e) => {
                             e.stopPropagation();
                             openEventModal(
                                 eventEl.dataset.eventTitle,
@@ -4452,7 +4445,7 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
                             );
                         });
                         
-                        eventsContainer.appendChild(eventEntry);
+                        eventsContainer.appendChild(eventDot);
                     });
                     
                     cell.appendChild(numberDiv);
