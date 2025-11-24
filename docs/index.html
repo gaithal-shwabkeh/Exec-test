@@ -3899,7 +3899,7 @@
                     if (success) {
                         displayMessage('user', userMessage);
                         const dateStr = new Date(pendingMeetingData.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-                        const response = `I've added "${pendingMeetingData.title}" to your agenda for ${dateStr} at ${pendingMeetingData.time}. I will consult with stakeholders regarding "${pendingMeetingData.topic}" to ensure all necessary preparations are made.`;
+                        const response = `I've added "${pendingMeetingData.title}" to your agenda for ${dateStr} at ${pendingMeetingData.time}.`;
                         displayMessage('agent', response, currentPersonaId);
                         chatHistory.push({ role: 'user', parts: [{ text: userMessage }] });
                         chatHistory.push({ role: 'model', parts: [{ text: response }] });
@@ -3944,7 +3944,7 @@
                     if (success) {
                         displayMessage('user', userMessage);
                         const dateStr = new Date(meetingData.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-                        const response = `I've added "${meetingData.title}" to your agenda for ${dateStr} at ${meetingData.time}. I will consult with stakeholders regarding "${meetingData.topic}" to ensure all necessary preparations are made.`;
+                        const response = `I've added "${meetingData.title}" to your agenda for ${dateStr} at ${meetingData.time}.`;
                         displayMessage('agent', response, currentPersonaId);
                         chatHistory.push({ role: 'user', parts: [{ text: userMessage }] });
                         chatHistory.push({ role: 'model', parts: [{ text: response }] });
