@@ -1185,6 +1185,7 @@
             flex-grow: 1;
             min-height: 0;
             overflow-y: auto;
+            overflow-x: hidden;
         }
 
         .agenda-view.active {
@@ -1196,11 +1197,15 @@
             display: flex !important; /* Use flex for week view grid */
             flex-direction: column;
             gap: 15px;
+            overflow-y: auto;
+            overflow-x: hidden;
         }
 
         #month-view.active {
             display: flex !important; /* Use flex for month view grid */
             flex-direction: column;
+            overflow-y: auto;
+            overflow-x: hidden;
         }
 
         .month-calendar-grid {
@@ -1211,6 +1216,8 @@
             flex-grow: 1;
             min-height: 0;
             grid-template-rows: auto repeat(6, 1fr); /* Header row + 6 weeks */
+            overflow-y: auto;
+            overflow-x: hidden;
         }
 
         .month-day-header {
@@ -1341,7 +1348,7 @@
         }
         .desktop-calendar { display: block; }
         .mobile-calendar { display: none; }
-        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; flex: 1; }
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; flex: 1; min-height: 0; overflow-y: auto; }
         .day-column { border-right: 1px solid var(--border-color); padding: 5px; }
         .day-column:last-child { border-right: none; }
         .day-column.weekend { background-color: rgba(0, 0, 0, 0.2); border-radius: 5px; }
@@ -3423,6 +3430,12 @@
             
             function openEditEventModal(title, time, details, dateStr, eventElement) {
                 closeModal(eventModal);
+                
+                // Remove existing edit modal if it exists
+                const existingEditModal = document.getElementById('edit-event-modal');
+                if (existingEditModal) {
+                    document.body.removeChild(existingEditModal);
+                }
                 
                 // Create edit modal content
                 const editModal = document.createElement('div');
