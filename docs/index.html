@@ -1284,24 +1284,41 @@
         .month-day-events {
             display: flex;
             flex-direction: column;
-            gap: 3px;
+            gap: 6px;
             flex-grow: 1;
-            overflow: hidden;
+            margin-top: 4px;
+            overflow-y: auto;
+            padding-right: 4px;
         }
 
-        .month-event-dot {
-            width: 100%;
-            height: 4px;
-            background: var(--primary-blue);
-            border-radius: 2px;
+        .month-event-entry {
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-left: 3px solid var(--primary-blue);
+            border-radius: 6px;
+            padding: 4px 6px;
+            background: rgba(255, 255, 255, 0.04);
+            font-size: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .month-event-entry.milestone {
+            border-left-color: #ffc107;
+            background: rgba(255, 193, 7, 0.12);
+        }
+
+        .month-event-entry .event-time {
             font-size: 0.7rem;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
+            font-weight: 600;
+            color: var(--primary-blue);
         }
 
-        .month-event-dot.milestone {
-            background: #ffc107;
+        .month-event-entry .event-title {
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: var(--text-dark);
+            line-height: 1.2;
         }
 
         .today-header {
@@ -4357,40 +4374,115 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
                 if (!monthGrid) return;
                 const allEvents = Array.from(document.querySelectorAll('.event[data-date]'));
                 const eventsByDate = new Map();
-                allEvents.forEach(e => { const date = e.dataset.date; if (!eventsByDate.has(date)) { eventsByDate.set(date, []); } eventsByDate.get(date).push(e); }); 
-                const year = currentMonth.getFullYear(); const month = currentMonth.getMonth();
+                allEvents.forEach(e => {
+                    const date = e.dataset.date;
+                    if (!eventsByDate.has(date)) {
+                        eventsByDate.set(date, []);
+                    }
+                    eventsByDate.get(date).push(e);
+                }); 
+                const year = currentMonth.getFullYear();
+                const month = currentMonth.getMonth();
                 const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                const firstDayOfMonth = new Date(year, month, 1); const daysInMonth = new Date(year, month + 1, 0).getDate(); const startingDay = firstDayOfMonth.getDay();
+                const firstDayOfMonth = new Date(year, month, 1);
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const startingDay = firstDayOfMonth.getDay();
+                
                 monthGrid.innerHTML = '';
-                ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach((day, index) => { const isWeekend = index === 5 || index === 6; monthGrid.innerHTML += `<div class="month-day-header ${isWeekend ? 'weekend' : ''}">${day}</div>`; });
-                for (let i = 0; i < startingDay; i++) { monthGrid.innerHTML += '<div class="month-day-cell other-month"></div>'; }
-                for (let day = 1; day <= daysInMonth; day++) { const date = new Date(year, month, day); const dayOfWeek = date.getDay(); const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`; const isToday = year === today.getFullYear() && month === today.getMonth() && day === today.getDate(); const isPast = date < todayDateOnly; const isWeekend = dayOfWeek === 5 || dayOfWeek === 6; let cellClasses = 'month-day-cell'; if (isToday) cellClasses += ' today'; if (isPast) cellClasses += ' disabled-day'; if (isWeekend) cellClasses += ' weekend'; let cellHtml = `<div class="${cellClasses}" data-date="${dateStr}"><div class="month-day-number">${day}</div><div class="month-day-events">`; if (eventsByDate.has(dateStr)) { eventsByDate.get(dateStr).forEach(eventEl => { const isMilestone = eventEl.classList.contains('event-milestone'); cellHtml += `<div class="month-event-dot ${isMilestone ? 'milestone' : ''}"></div>`; }); } cellHtml += `</div></div>`; monthGrid.innerHTML += cellHtml; }
-                 // Allow clicking on day cells - past days only if they have events
-                 monthGrid.querySelectorAll('.month-day-cell:not(.other-month)').forEach(cell => { 
-                     const dateStr = cell.dataset.date; 
-                     if (!dateStr) return;
-                     
-                     const isPast = cell.classList.contains('disabled-day');
-                     const hasEvents = eventsByDate.has(dateStr);
-                     
-                     // Past days: only clickable if they have events
-                     if (isPast && !hasEvents) {
-                         cell.style.cursor = 'not-allowed';
-                         cell.style.opacity = '0.3';
-                         return; // Don't add click handler
-                     }
-                     
-                     cell.style.cursor = 'pointer';
-                     cell.addEventListener('click', () => { 
-                         if (eventsByDate.has(dateStr)) { 
-                             const firstEvent = eventsByDate.get(dateStr)[0]; 
-                             openEventModal(firstEvent.dataset.eventTitle, firstEvent.dataset.eventTime, firstEvent.dataset.eventDetails, dateStr, firstEvent); 
-                         } else if (!isPast) {
-                             // Only allow day actions for future/current days
-                             openDayActionModal(dateStr); 
-                         }
-                     }); 
-                 });
+                ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach((day, index) => {
+                    const header = document.createElement('div');
+                    header.className = `month-day-header ${index === 5 || index === 6 ? 'weekend' : ''}`;
+                    header.textContent = day;
+                    monthGrid.appendChild(header);
+                });
+                
+                for (let i = 0; i < startingDay; i++) {
+                    const fillerCell = document.createElement('div');
+                    fillerCell.className = 'month-day-cell other-month';
+                    monthGrid.appendChild(fillerCell);
+                }
+                
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const date = new Date(year, month, day);
+                    const dayOfWeek = date.getDay();
+                    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    const isToday = year === today.getFullYear() && month === today.getMonth() && day === today.getDate();
+                    const isPast = date < todayDateOnly;
+                    const isWeekend = dayOfWeek === 5 || dayOfWeek === 6;
+                    let cellClasses = 'month-day-cell';
+                    if (isToday) cellClasses += ' today';
+                    if (isPast) cellClasses += ' disabled-day';
+                    if (isWeekend) cellClasses += ' weekend';
+                    
+                    const cell = document.createElement('div');
+                    cell.className = cellClasses;
+                    cell.dataset.date = dateStr;
+                    
+                    const numberDiv = document.createElement('div');
+                    numberDiv.className = 'month-day-number';
+                    numberDiv.textContent = day;
+                    
+                    const eventsContainer = document.createElement('div');
+                    eventsContainer.className = 'month-day-events';
+                    
+                    const eventsForDate = eventsByDate.get(dateStr) || [];
+                    eventsForDate.forEach(eventEl => {
+                        const eventEntry = document.createElement('div');
+                        eventEntry.className = `month-event-entry${eventEl.classList.contains('event-milestone') ? ' milestone' : ''}`;
+                        
+                        const timeDiv = document.createElement('div');
+                        timeDiv.className = 'event-time';
+                        timeDiv.textContent = eventEl.dataset.eventTime || '';
+                        
+                        const titleDiv = document.createElement('div');
+                        titleDiv.className = 'event-title';
+                        titleDiv.textContent = eventEl.dataset.eventTitle || '';
+                        
+                        eventEntry.appendChild(timeDiv);
+                        eventEntry.appendChild(titleDiv);
+                        
+                        eventEntry.addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            openEventModal(
+                                eventEl.dataset.eventTitle,
+                                eventEl.dataset.eventTime,
+                                eventEl.dataset.eventDetails,
+                                dateStr,
+                                eventEl
+                            );
+                        });
+                        
+                        eventsContainer.appendChild(eventEntry);
+                    });
+                    
+                    cell.appendChild(numberDiv);
+                    cell.appendChild(eventsContainer);
+                    
+                    const hasEvents = eventsForDate.length > 0;
+                    if (isPast && !hasEvents) {
+                        cell.style.cursor = 'not-allowed';
+                        cell.style.opacity = '0.3';
+                    } else {
+                        cell.style.cursor = 'pointer';
+                        cell.addEventListener('click', () => {
+                            if (hasEvents) {
+                                const firstEvent = eventsForDate[0];
+                                openEventModal(
+                                    firstEvent.dataset.eventTitle,
+                                    firstEvent.dataset.eventTime,
+                                    firstEvent.dataset.eventDetails,
+                                    dateStr,
+                                    firstEvent
+                                );
+                            } else if (!isPast) {
+                                openDayActionModal(dateStr);
+                            }
+                        });
+                    }
+                    
+                    monthGrid.appendChild(cell);
+                }
+                
                 updateWeekHeader();
             }
 
