@@ -2688,9 +2688,11 @@
                 <div class="desktop-calendar">
                     <div class="agenda-header">
                         <div class="calendar-title">
-                            <button id="calendar-prev-year" aria-label="Previous year"><i class="fas fa-chevron-left"></i></button>
+                            <button data-nav="year" data-delta="-1" aria-label="Previous year"><i class="fas fa-angle-double-left"></i></button>
+                            <button data-nav="month" data-delta="-1" aria-label="Previous month"><i class="fas fa-chevron-left"></i></button>
                             <h2 id="desktop-calendar-title"></h2>
-                            <button id="calendar-next-year" aria-label="Next year"><i class="fas fa-chevron-right"></i></button>
+                            <button data-nav="month" data-delta="1" aria-label="Next month"><i class="fas fa-chevron-right"></i></button>
+                            <button data-nav="year" data-delta="1" aria-label="Next year"><i class="fas fa-angle-double-right"></i></button>
                         </div>
                         <div class="view-toggle">
                             <button class="view-btn" data-view="today">Today</button>
@@ -2729,15 +2731,17 @@
                 <div class="mobile-calendar">
                     <div class="agenda-header">
                         <div class="calendar-title">
-                            <button id="mobile-prev-year" aria-label="Previous year"><i class="fas fa-chevron-left"></i></button>
+                            <button data-nav="year" data-delta="-1" aria-label="Previous year"><i class="fas fa-angle-double-left"></i></button>
+                            <button data-nav="month" data-delta="-1" aria-label="Previous month"><i class="fas fa-chevron-left"></i></button>
                             <h2 id="mobile-calendar-title"></h2>
-                            <button id="mobile-next-year" aria-label="Next year"><i class="fas fa-chevron-right"></i></button>
+                            <button data-nav="month" data-delta="1" aria-label="Next month"><i class="fas fa-chevron-right"></i></button>
+                            <button data-nav="year" data-delta="1" aria-label="Next year"><i class="fas fa-angle-double-right"></i></button>
                         </div>
-                        <div class="view-toggle">
-                            <button class="mobile-view-btn" data-view="today">Today</button>
-                            <button class="mobile-view-btn active" data-view="week">Week</button>
-                            <button class="mobile-view-btn" data-view="month">Month</button>
-                        </div>
+                    </div>
+                    <div class="view-toggle">
+                        <button class="mobile-view-btn" data-view="today">Today</button>
+                        <button class="mobile-view-btn active" data-view="week">Week</button>
+                        <button class="mobile-view-btn" data-view="month">Month</button>
                     </div>
                     <div id="mobile-month-grid"><div class="day-name">Sun</div><div class="day-name">Mon</div><div class="day-name">Tue</div><div class="day-name">Wed</div><div class="day-name">Thu</div><div class="day-name">Fri</div><div class="day-name">Sat</div><div class="day-cell">19</div><div class="day-cell">20</div><div class="day-cell has-event">21</div><div class="day-cell today has-event">22</div><div class="day-cell selected">23</div><div class="day-cell has-event">24</div><div class="day-cell">25</div></div>
                     <div id="mobile-agenda-events"><p style="opacity: 0.7; text-align: center; padding: 20px;">No events scheduled for this day</p></div>
@@ -2890,6 +2894,11 @@
                 refreshCalendarViews();
             }
 
+            function adjustCalendarMonth(delta) {
+                calendarCursor.setMonth(calendarCursor.getMonth() + delta);
+                refreshCalendarViews();
+            }
+
             function refreshCalendarViews() {
                 updateCalendarTitles();
                 renderDesktopMonthCalendar();
@@ -2920,15 +2929,17 @@
             const messageModalTitle = document.getElementById("message-modal-title"); // New
             const messageModalText = document.getElementById("message-modal-text"); // New
             const copySummaryBtn = document.getElementById("copy-summary-btn"); // Copy button
-            const prevYearBtn = document.getElementById('calendar-prev-year');
-            const nextYearBtn = document.getElementById('calendar-next-year');
-            const mobilePrevYearBtn = document.getElementById('mobile-prev-year');
-            const mobileNextYearBtn = document.getElementById('mobile-next-year');
 
-            prevYearBtn?.addEventListener('click', () => adjustCalendarYear(-1));
-            nextYearBtn?.addEventListener('click', () => adjustCalendarYear(1));
-            mobilePrevYearBtn?.addEventListener('click', () => adjustCalendarYear(-1));
-            mobileNextYearBtn?.addEventListener('click', () => adjustCalendarYear(1));
+            document.querySelectorAll('[data-nav]').forEach(button => {
+                button.addEventListener('click', () => {
+                    const delta = parseInt(button.dataset.delta, 10) || 0;
+                    if (button.dataset.nav === 'year') {
+                        adjustCalendarYear(delta);
+                    } else if (button.dataset.nav === 'month') {
+                        adjustCalendarMonth(delta);
+                    }
+                });
+            });
 
             // --- Function Definitions ---
 
