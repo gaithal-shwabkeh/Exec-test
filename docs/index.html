@@ -4368,7 +4368,9 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
                     const dateStr = `${year}-${month}-${day}`;
                     const dayName = dayNames[i];
                     const dayNumber = currentDate.getDate();
-                    const isWeekend = i === 0 || i === 6;
+                    const dayOfWeek = currentDate.getDay();
+                    // Weekend is Friday (5) and Saturday (6) in this region
+                    const isWeekend = dayOfWeek === 5 || dayOfWeek === 6;
                     // Compare with today's date
                     const todayYear = today.getFullYear();
                     const todayMonth = String(today.getMonth() + 1).padStart(2, '0');
@@ -4387,14 +4389,25 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
                     `;
                     dayColumn.appendChild(dayHeader);
                     
-                    // Add events for this day
+                    // Add events for this day - create visible rectangles with titles
                     if (eventsByDate.has(dateStr)) {
                         eventsByDate.get(dateStr).forEach(eventEl => {
-                            const eventClone = eventEl.cloneNode(true);
-                            eventClone.addEventListener('click', () => {
-                                openEventModal(eventClone.dataset.eventTitle, eventClone.dataset.eventTime, eventClone.dataset.eventDetails, dateStr);
+                            const eventDiv = document.createElement('div');
+                            eventDiv.className = 'event';
+                            if (eventEl.classList.contains('event-milestone')) {
+                                eventDiv.classList.add('event-milestone');
+                            }
+                            
+                            // Create visible event rectangle with title and time
+                            eventDiv.innerHTML = `
+                                <div class="event-time">${eventEl.dataset.eventTime}</div>
+                                <div class="event-title">${eventEl.dataset.eventTitle}</div>
+                            `;
+                            
+                            eventDiv.addEventListener('click', () => {
+                                openEventModal(eventEl.dataset.eventTitle, eventEl.dataset.eventTime, eventEl.dataset.eventDetails, dateStr);
                             });
-                            dayColumn.appendChild(eventClone);
+                            dayColumn.appendChild(eventDiv);
                         });
                     }
                     
