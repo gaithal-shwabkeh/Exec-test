@@ -2865,8 +2865,8 @@
             let isMultiAgentMode = false; // Mode: false = single agent, true = multi-agent
             let chatHistory = [];
             let selectedText = '';
-            // Set "today" dynamically to keep the agenda in sync with the current date
-            const today = new Date();
+            // Set "today" to the specified context date: Wednesday, Oct 22, 2025
+            const today = new Date('2025-10-22T09:23:00+03:00');
 
             // --- DOM Elements ---
             const mainPersonaImage = document.getElementById('mainPersonaImage');
