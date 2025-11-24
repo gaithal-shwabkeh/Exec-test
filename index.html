@@ -1150,6 +1150,35 @@
             display: block;
         }
 
+        .week-nav {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+
+        .week-nav button {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--border-color);
+            color: var(--text-light);
+            border-radius: 10px;
+            width: 36px;
+            height: 36px;
+            cursor: pointer;
+            transition: background 0.2s ease, transform 0.2s ease;
+        }
+
+        .week-nav button:hover {
+            background: rgba(0, 169, 157, 0.2);
+            transform: translateY(-1px);
+        }
+
+        #week-range-label {
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+
         #today-view.active,
         #week-view.active {
             display: flex !important; /* Use flex for week view grid */
@@ -2711,15 +2740,20 @@
 
                     <!-- Week View (Desktop) -->
                     <div id="week-view" class="agenda-view active">
-                        <div class="calendar-grid">
-                            <div class="day-column"><div class="day-header"><div class="day-name">Sun</div><div class="day-number">19</div></div></div>
-                            <div class="day-column"><div class="day-header"><div class="day-name">Mon</div><div class="day-number">20</div></div> <div class="event" data-event-title="Labor Market Policy Review" data-event-time="09:00 AM" data-event-details="Strategic sync on new labor market policies to enhance Saudization." data-topic="labor-market" data-date="2025-10-20"> <div class="event-time">09:00 AM</div> <div class="event-title">Labor Market Policy Review</div> </div> <div class="event event-milestone" data-event-title="Milestone: Non-Profit Portal Launch" data-event-time="EOD" data-event-details="Official launch of the new national portal for non-profit organizations. Review launch communications." data-topic="non-profit" data-date="2025-10-20"> <div class="event-time">EOD</div> <div class="event-title">Milestone: Non-Profit Portal Launch</div> </div></div>
-                            <div class="day-column"><div class="day-header"><div class="day-name">Tue</div><div class="day-number">21</div></div> <div class="event" data-event-title="Partnership MoU Signing" data-event-time="10:00 AM" data-event-details="Ceremony for signing the Memorandum of Understanding with key private sector partners." data-topic="strategic-partnerships" data-date="2025-10-21"> <div class="event-time">10:00 AM</div> <div class="event-title">Partnership MoU Signing</div> </div></div>
-                            <div class="day-column"><div class="day-header"><div class="day-name">Wed</div><div class="day-number">22</div></div></div>
-                            <div class="day-column"><div class="day-header"><div class="day-name">Thu</div><div class="day-number">23</div></div> <div class="event" data-event-title="Community Empowerment Briefing" data-event-time="02:00 PM" data-event-details="Briefing on the results of the recent community empowerment programs and future plans." data-topic="empowerment" data-date="2025-10-23"> <div class="event-time">02:00 PM</div> <div class="event-title">Community Empowerment Briefing</div> </div></div>
-                            <div class="day-column weekend"><div class="day-header"><div class="day-name">Fri</div><div class="day-number">24</div></div></div>
-                            <div class="day-column weekend"><div class="day-header"><div class="day-name">Sat</div><div class="day-number">25</div></div></div>
+                        <div class="week-nav">
+                            <button class="week-switch" data-week-delta="-1" aria-label="Previous week"><i class="fas fa-chevron-left"></i></button>
+                            <span id="week-range-label"></span>
+                            <button class="week-switch" data-week-delta="1" aria-label="Next week"><i class="fas fa-chevron-right"></i></button>
                         </div>
+                        <div class="calendar-grid" id="week-grid"></div>
+                    </div>
+
+                    <!-- Agenda Event Templates -->
+                    <div id="agenda-event-templates" style="display: none;">
+                        <div class="event" data-event-title="Labor Market Policy Review" data-event-time="09:00 AM" data-event-details="Strategic sync on new labor market policies to enhance Saudization." data-topic="labor-market" data-date="2025-10-20"></div>
+                        <div class="event event-milestone" data-event-title="Milestone: Non-Profit Portal Launch" data-event-time="EOD" data-event-details="Official launch of the new national portal for non-profit organizations. Review launch communications." data-topic="non-profit" data-date="2025-10-20"></div>
+                        <div class="event" data-event-title="Partnership MoU Signing" data-event-time="10:00 AM" data-event-details="Ceremony for signing the Memorandum of Understanding with key private sector partners." data-topic="strategic-partnerships" data-date="2025-10-21"></div>
+                        <div class="event" data-event-title="Community Empowerment Briefing" data-event-time="02:00 PM" data-event-details="Briefing on the results of the recent community empowerment programs and future plans." data-topic="empowerment" data-date="2025-10-23"></div>
                     </div>
 
                     <!-- Month View (Desktop) -->
@@ -2878,8 +2912,91 @@
             let chatHistory = [];
             let selectedText = '';
             // Set "today" to the specified context date: Wednesday, Oct 22, 2025
-            const today = new Date('2025-10-22T09:23:00+03:00');
+            const today = new Date();
             let calendarCursor = new Date(today);
+            let currentWeekStart = startOfWeek(calendarCursor);
+            let mobileSelectedDate = new Date(today);
+
+            const agendaEvents = [
+                {
+                    title: 'Labor Market Policy Review',
+                    date: '2025-10-20',
+                    time: '09:00 AM',
+                    details: 'Strategic sync on new labor market policies to enhance Saudization.',
+                    topic: 'labor-market',
+                    milestone: false
+                },
+                {
+                    title: 'Milestone: Non-Profit Portal Launch',
+                    date: '2025-10-20',
+                    time: 'EOD',
+                    details: 'Official launch of the new national portal for non-profit organizations. Review launch communications.',
+                    topic: 'non-profit',
+                    milestone: true
+                },
+                {
+                    title: 'Partnership MoU Signing',
+                    date: '2025-10-21',
+                    time: '10:00 AM',
+                    details: 'Ceremony for signing the Memorandum of Understanding with key private sector partners.',
+                    topic: 'strategic-partnerships',
+                    milestone: false
+                },
+                {
+                    title: 'Community Empowerment Briefing',
+                    date: '2025-10-23',
+                    time: '02:00 PM',
+                    details: 'Briefing on the results of the recent community empowerment programs and future plans.',
+                    topic: 'empowerment',
+                    milestone: false
+                }
+            ];
+
+            function startOfWeek(date) {
+                const d = new Date(date);
+                const day = d.getDay();
+                d.setHours(0, 0, 0, 0);
+                d.setDate(d.getDate() - day);
+                return d;
+            }
+
+            function formatDateKey(date) {
+                return date.toISOString().split('T')[0];
+            }
+
+            function getEventsByDate(dateStr) {
+                return agendaEvents.filter(event => event.date === dateStr);
+            }
+
+            function parseTimeToMinutes(timeStr) {
+                if (timeStr === 'EOD') return 17 * 60;
+                const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+                if (!match) return 24 * 60;
+                let hours = parseInt(match[1], 10);
+                const minutes = parseInt(match[2], 10);
+                const period = match[3]?.toUpperCase();
+                if (period === 'PM' && hours !== 12) hours += 12;
+                if (period === 'AM' && hours === 12) hours = 0;
+                return hours * 60 + minutes;
+            }
+
+            function createEventElement(eventData) {
+                const eventDiv = document.createElement('div');
+                eventDiv.className = `event${eventData.milestone ? ' event-milestone' : ''}`;
+                eventDiv.dataset.eventTitle = eventData.title;
+                eventDiv.dataset.eventTime = eventData.time;
+                eventDiv.dataset.eventDetails = eventData.details;
+                eventDiv.dataset.topic = eventData.topic;
+                eventDiv.dataset.date = eventData.date;
+                eventDiv.innerHTML = `
+                    <div class="event-time">${eventData.time}</div>
+                    <div class="event-title">${eventData.title}</div>
+                `;
+                eventDiv.addEventListener('click', () => {
+                    openEventModal(eventData.title, eventData.time, eventData.details);
+                });
+                return eventDiv;
+            }
 
             function updateCalendarTitles() {
                 const label = calendarCursor.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
@@ -2891,18 +3008,24 @@
 
             function adjustCalendarYear(delta) {
                 calendarCursor.setFullYear(calendarCursor.getFullYear() + delta);
+                currentWeekStart = startOfWeek(calendarCursor);
                 refreshCalendarViews();
             }
 
             function adjustCalendarMonth(delta) {
                 calendarCursor.setMonth(calendarCursor.getMonth() + delta);
+                currentWeekStart = startOfWeek(calendarCursor);
                 refreshCalendarViews();
             }
 
             function refreshCalendarViews() {
                 updateCalendarTitles();
                 renderDesktopMonthCalendar();
+                renderWeekView();
                 initMobileCalendar();
+                renderTodayView();
+                updateTodaysAgendaPanel();
+                setupAgendaInteractions();
             }
 
             // --- DOM Elements ---
@@ -2941,6 +3064,15 @@
                 });
             });
 
+            document.querySelectorAll('[data-week-delta]').forEach(button => {
+                button.addEventListener('click', () => {
+                    const delta = parseInt(button.dataset.weekDelta, 10) || 0;
+                    currentWeekStart.setDate(currentWeekStart.getDate() + delta * 7);
+                    calendarCursor = new Date(currentWeekStart);
+                    refreshCalendarViews();
+                });
+            });
+
             // --- Function Definitions ---
 
             // --- Persona Management ---
@@ -2974,6 +3106,45 @@
                  if(chatHistory.length === 0 || chatHistory[chatHistory.length-1]?.parts?.[0]?.text !== greeting) {
                     chatHistory.push({ role: 'model', parts: [{ text: greeting }] });
                  }
+            }
+
+            function renderWeekView() {
+                 const weekGrid = document.getElementById('week-grid');
+                const rangeLabel = document.getElementById('week-range-label');
+                if (!weekGrid || !rangeLabel) return;
+
+                weekGrid.innerHTML = '';
+                const weekDates = [];
+                for (let i = 0; i < 7; i++) {
+                    const day = new Date(currentWeekStart);
+                    day.setDate(day.getDate() + i);
+                    weekDates.push(day);
+                }
+                const formatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
+                rangeLabel.textContent = `${formatter.format(weekDates[0])} – ${formatter.format(weekDates[6])}`;
+
+                weekDates.forEach(day => {
+                    const column = document.createElement('div');
+                    column.className = `day-column${(day.getDay() === 5 || day.getDay() === 6) ? ' weekend' : ''}`;
+                    column.innerHTML = `
+                        <div class="day-header">
+                            <div class="day-name">${day.toLocaleDateString('en-US', { weekday: 'short' })}</div>
+                            <div class="day-number">${day.getDate()}</div>
+                        </div>
+                        <div class="day-events"></div>
+                    `;
+                    const eventsContainer = column.querySelector('.day-events');
+                    const dateStr = formatDateKey(day);
+                    const dayEvents = getEventsByDate(dateStr);
+                    if (dayEvents.length === 0) {
+                        eventsContainer.innerHTML = `<p style="opacity: 0.5; font-size: 0.85rem;">No events</p>`;
+                    } else {
+                        dayEvents.forEach(eventData => {
+                            eventsContainer.appendChild(createEventElement(eventData));
+                        });
+                    }
+                    weekGrid.appendChild(column);
+                });
             }
             
             // --- Multi-Agent Functions ---
@@ -3264,16 +3435,18 @@
             }
 
             // --- Agenda & Calendar ---
-             function setupAgendaInteractions() {
+            function setupAgendaInteractions() {
                  document.querySelectorAll('.event').forEach(eventEl => {
+                    if (eventEl.dataset.listenerAttached === 'true') return;
                      eventEl.addEventListener('click', () => {
                          const title = eventEl.dataset.eventTitle;
-                         const time = eventEl.dataset.eventTime;
-                         const details = eventEl.dataset.eventDetails;
-                         openEventModal(title, time, details);
-                     });
-                 });
-             }
+                        const time = eventEl.dataset.eventTime;
+                        const details = eventEl.dataset.eventDetails;
+                        openEventModal(title, time, details);
+                    });
+                    eventEl.dataset.listenerAttached = 'true';
+                });
+            }
 
             function openEventModal(title, time, details) {
                  const titleEl = document.getElementById('event-modal-title');
@@ -3342,19 +3515,19 @@
                 list.innerHTML = '';
                 title.textContent = `Meetings Related to "${topicTitle}"`;
 
-                const relatedEvents = document.querySelectorAll(`.event[data-topic="${topicId}"]`);
+                const relatedEvents = agendaEvents.filter(event => event.topic === topicId);
 
                 if (relatedEvents.length > 0) {
                     relatedEvents.forEach(eventEl => {
                         const item = document.createElement('div');
                         item.className = 'meeting-item';
                         item.innerHTML = `
-                            <div class="meeting-title">${eventEl.dataset.eventTitle}</div>
-                            <div class="meeting-time">${eventEl.dataset.eventTime}</div>
+                            <div class="meeting-title">${eventEl.title}</div>
+                            <div class="meeting-time">${eventEl.time}</div>
                         `;
                         // Add click handler to discuss this specific meeting
                         item.addEventListener('click', () => {
-                             const prompt = `Let's discuss my meeting: "${eventEl.dataset.eventTitle}". Please provide a summary and key objectives.`;
+                             const prompt = `Let's discuss my meeting: "${eventEl.title}". Please provide a summary and key objectives.`;
                              switchToAgentAndSendPrompt(prompt);
                         });
                         list.appendChild(item);
@@ -4058,28 +4231,23 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
             // --- UI & Event Listeners ---
             function updateTodaysAgendaPanel() {
                  if (!summaryContent) return;
-                const now = today;
-                const todayStr = now.toISOString().split('T')[0];
-                const allEvents = Array.from(document.querySelectorAll('.event'));
-                const todaysEvents = allEvents.filter(eventEl => eventEl.dataset.date === todayStr);
-                const upcomingEvents = todaysEvents.filter(eventEl => { /* ... time filtering logic ... */
-                    const eventTimeStr = eventEl.dataset.eventTime; let eventHour = 99; let eventMinute = 0;
-                    if (eventTimeStr === 'EOD') { eventHour = 17; } else if (eventTimeStr.includes(':')) { const parts = eventTimeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i); if (parts) { eventHour = parseInt(parts[1]); eventMinute = parseInt(parts[2]); const isPM = parts[3] && parts[3].toUpperCase() === 'PM'; if (isPM && eventHour !== 12) eventHour += 12; if (!isPM && eventHour === 12) eventHour = 0; } }
-                    return now.getHours() < eventHour || (now.getHours() === eventHour && now.getMinutes() < eventMinute);
-                });
-                upcomingEvents.sort((a, b) => { /* ... time sorting logic ... */
-                    const timeStrToMinutes = (timeStr) => { if (timeStr === 'EOD') return 17 * 60; const parts = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i); if (parts) { let hours = parseInt(parts[1]); const minutes = parseInt(parts[2]); const isPM = parts[3] && parts[3].toUpperCase() === 'PM'; if (isPM && hours !== 12) hours += 12; if (!isPM && hours === 12) hours = 0; return hours * 60 + minutes; } return 24 * 60; }; return timeStrToMinutes(a.dataset.eventTime) - timeStrToMinutes(b.dataset.eventTime);
-                });
+                const now = new Date();
+                const todayStr = formatDateKey(now);
+                const todaysEvents = getEventsByDate(todayStr);
+                const currentMinutes = now.getHours() * 60 + now.getMinutes();
+                const upcomingEvents = todaysEvents
+                    .filter(event => parseTimeToMinutes(event.time) > currentMinutes)
+                    .sort((a, b) => parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time));
 
-                if (upcomingEvents.length > 0) { /* ... populate with next/later events ... */
+                if (upcomingEvents.length > 0) {
                     const nextEvent = upcomingEvents[0]; const laterEvents = upcomingEvents.slice(1);
-                    summaryContent.innerHTML = `<h4>Next Up: ${nextEvent.dataset.eventTitle} (${nextEvent.dataset.eventTime})</h4> <p>${nextEvent.dataset.eventDetails}</p> <div class="key-topics-pills"><div class="key-topic-pill" data-topic="Key Objectives">Key Objectives</div><div class="key-topic-pill" data-topic="Attendees">Attendees</div><div class="key-topic-pill" data-topic="Required Actions">Required Actions</div></div>`;
-                    if (laterEvents.length > 0) { summaryContent.innerHTML += '<h4>Later Today</h4><ul>'; laterEvents.forEach(eventEl => { summaryContent.innerHTML += `<li><strong>${eventEl.dataset.eventTitle}</strong> (${eventEl.dataset.eventTime})</li>`; }); summaryContent.innerHTML += '</ul>'; }
-                    summaryContent.querySelectorAll('.key-topic-pill').forEach(pill => { pill.addEventListener('click', () => { const prompt = `Elaborate on the topic "${pill.dataset.topic}" regarding the "${nextEvent.dataset.eventTitle}".`; switchToAgentAndSendPrompt(prompt); }); });
-                } else { /* ... show completed / look ahead ... */
+                    summaryContent.innerHTML = `<h4>Next Up: ${nextEvent.title} (${nextEvent.time})</h4> <p>${nextEvent.details}</p> <div class="key-topics-pills"><div class="key-topic-pill" data-topic="Key Objectives">Key Objectives</div><div class="key-topic-pill" data-topic="Attendees">Attendees</div><div class="key-topic-pill" data-topic="Required Actions">Required Actions</div></div>`;
+                    if (laterEvents.length > 0) { summaryContent.innerHTML += '<h4>Later Today</h4><ul>'; laterEvents.forEach(eventObj => { summaryContent.innerHTML += `<li><strong>${eventObj.title}</strong> (${eventObj.time})</li>`; }); summaryContent.innerHTML += '</ul>'; }
+                    summaryContent.querySelectorAll('.key-topic-pill').forEach(pill => { pill.addEventListener('click', () => { const prompt = `Elaborate on the topic "${pill.dataset.topic}" regarding the "${nextEvent.title}".`; switchToAgentAndSendPrompt(prompt); }); });
+                } else {
                      summaryContent.innerHTML = `<h4>Today's Agenda</h4><p>No further meetings or milestones scheduled for today.</p>`;
-                    const tomorrow = new Date(now); tomorrow.setDate(now.getDate() + 1); const tomorrowStr = tomorrow.toISOString().split('T')[0]; const tomorrowsEvents = allEvents.filter(eventEl => eventEl.dataset.date === tomorrowStr); tomorrowsEvents.sort((a, b) => { /* Add sorting if needed */ });
-                    if (tomorrowsEvents.length > 0) { summaryContent.innerHTML += `<h4>Tomorrow's First Item: ${tomorrowsEvents[0].dataset.eventTitle} (${tomorrowsEvents[0].dataset.eventTime})</h4>`; }
+                    const tomorrow = new Date(now); tomorrow.setDate(now.getDate() + 1); const tomorrowEvents = getEventsByDate(formatDateKey(tomorrow)).sort((a, b) => parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time));
+                    if (tomorrowEvents.length > 0) { summaryContent.innerHTML += `<h4>Tomorrow's First Item: ${tomorrowEvents[0].title} (${tomorrowEvents[0].time})</h4>`; }
                 }
             }
 
@@ -4116,18 +4284,42 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
             function renderDesktopMonthCalendar() {
                  const monthGrid = document.getElementById('month-calendar-grid');
                 if (!monthGrid) return;
-                const allEvents = Array.from(document.querySelectorAll('.event[data-date]'));
+
                 const eventsByDate = new Map();
-                allEvents.forEach(e => { const date = e.dataset.date; if (!eventsByDate.has(date)) { eventsByDate.set(date, []); } eventsByDate.get(date).push(e); });
+                agendaEvents.forEach(event => {
+                    if (!eventsByDate.has(event.date)) {
+                        eventsByDate.set(event.date, []);
+                    }
+                    eventsByDate.get(event.date).push(event);
+                });
+
                 const year = calendarCursor.getFullYear();
                 const month = calendarCursor.getMonth();
-                const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-                const firstDayOfMonth = new Date(year, month, 1); const daysInMonth = new Date(year, month + 1, 0).getDate(); const startingDay = firstDayOfMonth.getDay();
+                const firstDayOfMonth = new Date(year, month, 1);
+                const daysInMonth = new Date(year, month + 1, 0).getDate();
+                const startingDay = firstDayOfMonth.getDay();
                 monthGrid.innerHTML = '';
                 ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach((day, index) => { const isWeekend = index === 5 || index === 6; monthGrid.innerHTML += `<div class="month-day-header ${isWeekend ? 'weekend' : ''}">${day}</div>`; });
                 for (let i = 0; i < startingDay; i++) { monthGrid.innerHTML += '<div class="month-day-cell other-month"></div>'; }
-                for (let day = 1; day <= daysInMonth; day++) { const date = new Date(year, month, day); const dayOfWeek = date.getDay(); const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`; const isToday = day === today.getDate(); const isPast = date < todayDateOnly; const isWeekend = dayOfWeek === 5 || dayOfWeek === 6; let cellClasses = 'month-day-cell'; if (isToday) cellClasses += ' today'; if (isPast) cellClasses += ' disabled-day'; if (isWeekend) cellClasses += ' weekend'; let cellHtml = `<div class="${cellClasses}" data-date="${dateStr}"><div class="month-day-number">${day}</div><div class="month-day-events">`; if (eventsByDate.has(dateStr)) { eventsByDate.get(dateStr).forEach(eventEl => { const isMilestone = eventEl.classList.contains('event-milestone'); cellHtml += `<div class="month-event-dot ${isMilestone ? 'milestone' : ''}"></div>`; }); } cellHtml += `</div></div>`; monthGrid.innerHTML += cellHtml; }
-                 monthGrid.querySelectorAll('.month-day-cell:not(.disabled-day, .other-month)').forEach(cell => { const dateStr = cell.dataset.date; cell.addEventListener('click', () => { if (eventsByDate.has(dateStr)) { const firstEvent = eventsByDate.get(dateStr)[0]; openEventModal(firstEvent.dataset.eventTitle, firstEvent.dataset.eventTime, firstEvent.dataset.eventDetails); } else { openDayActionModal(dateStr); } }); });
+                for (let day = 1; day <= daysInMonth; day++) {
+                    const date = new Date(year, month, day);
+                    const dayOfWeek = date.getDay();
+                    const dateStr = formatDateKey(date);
+                    const isToday = formatDateKey(today) === dateStr;
+                    const isWeekend = dayOfWeek === 5 || dayOfWeek === 6;
+                    let cellClasses = 'month-day-cell';
+                    if (isToday) cellClasses += ' today';
+                    if (isWeekend) cellClasses += ' weekend';
+                    let cellHtml = `<div class="${cellClasses}" data-date="${dateStr}"><div class="month-day-number">${day}</div><div class="month-day-events">`;
+                    if (eventsByDate.has(dateStr)) {
+                        eventsByDate.get(dateStr).forEach(eventObj => {
+                            cellHtml += `<div class="month-event-dot ${eventObj.milestone ? 'milestone' : ''}"></div>`;
+                        });
+                    }
+                    cellHtml += `</div></div>`;
+                    monthGrid.innerHTML += cellHtml;
+                }
+                 monthGrid.querySelectorAll('.month-day-cell:not(.other-month)').forEach(cell => { const dateStr = cell.dataset.date; cell.addEventListener('click', () => { const events = eventsByDate.get(dateStr) || []; if (events.length > 0) { openEventModal(events[0].title, events[0].time, events[0].details); } else { openDayActionModal(dateStr); } }); });
             }
 
             // Day Action Modal
@@ -4139,39 +4331,66 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
             // Desktop Today View Rendering
             function renderTodayView() {
                  const todayList = document.getElementById('today-events-list'); const todayDateEl = document.querySelector('#today-view .today-date'); if (!todayList || !todayDateEl) return;
-                const todayStr = today.toISOString().split('T')[0]; todayDateEl.textContent = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }); const todaysEvents = Array.from(document.querySelectorAll(`.event[data-date="${todayStr}"]`)); todayList.innerHTML = ''; if (todaysEvents.length > 0) { todaysEvents.forEach(eventEl => { const eventClone = eventEl.cloneNode(true); eventClone.addEventListener('click', () => { openEventModal(eventClone.dataset.eventTitle, eventClone.dataset.eventTime, eventClone.dataset.eventDetails); }); todayList.appendChild(eventClone); }); } else { todayList.innerHTML = '<p style="opacity: 0.7; text-align: center; padding: 20px;">No events scheduled for today.</p>'; }
+                const todayStr = formatDateKey(today); todayDateEl.textContent = today.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }); const todaysEvents = getEventsByDate(todayStr); todayList.innerHTML = ''; if (todaysEvents.length > 0) { todaysEvents.forEach(eventData => { todayList.appendChild(createEventElement(eventData)); }); } else { todayList.innerHTML = '<p style="opacity: 0.7; text-align: center; padding: 20px;">No events scheduled for today.</p>'; }
             }
 
             // Mobile Calendar Logic
             function initMobileCalendar() {
-                 const monthGrid = document.getElementById('mobile-month-grid'); const agendaEvents = document.getElementById('mobile-agenda-events'); if (!monthGrid || !agendaEvents) return;
-                const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']; let selectedDate = today; const allEvents = Array.from(document.querySelectorAll('.event[data-date]')); const eventDates = new Set(allEvents.map(e => e.dataset.date));
-                function renderCalendar() { monthGrid.innerHTML = ''; dayNames.forEach(day => { const dayNameEl = document.createElement('div'); dayNameEl.className = 'day-name'; dayNameEl.textContent = day; monthGrid.appendChild(dayNameEl); }); 
+                 const monthGrid = document.getElementById('mobile-month-grid'); const agendaList = document.getElementById('mobile-agenda-events'); if (!monthGrid || !agendaList) return;
+                const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
                 const currentMonth = calendarCursor.getMonth();
                 const currentYear = calendarCursor.getFullYear();
-                const startDate = new Date(currentYear, currentMonth, 1);
-                startDate.setDate(startDate.getDate() - startDate.getDay()); // start week on Sunday
+                if (mobileSelectedDate.getMonth() !== currentMonth || mobileSelectedDate.getFullYear() !== currentYear) {
+                    mobileSelectedDate = new Date(currentYear, currentMonth, 1);
+                }
 
-                for (let i = 0; i < 42; i++) {
-                    const cellDate = new Date(startDate);
-                    cellDate.setDate(startDate.getDate() + i);
-                    const dayCell = document.createElement('div');
-                    dayCell.className = 'day-cell';
-                    dayCell.textContent = cellDate.getDate();
-                    if (cellDate.getMonth() !== currentMonth) dayCell.classList.add('other-month');
-                    const dateStr = cellDate.toISOString().split('T')[0];
-                    if (dateStr === today.toISOString().split('T')[0]) dayCell.classList.add('today');
-                    if (dateStr === selectedDate.toISOString().split('T')[0]) dayCell.classList.add('selected');
-                    if (eventDates.has(dateStr)) dayCell.classList.add('has-event');
-                    dayCell.addEventListener('click', () => {
-                        selectedDate = cellDate;
-                        renderCalendar();
-                        renderEvents(dateStr);
+                function renderCalendar() {
+                    monthGrid.innerHTML = '';
+                    dayNames.forEach(day => {
+                        const dayNameEl = document.createElement('div');
+                        dayNameEl.className = 'day-name';
+                        dayNameEl.textContent = day;
+                        monthGrid.appendChild(dayNameEl);
                     });
-                    monthGrid.appendChild(dayCell);
-                }}
-                function renderEvents(dateStr) { const dayEvents = allEvents.filter(e => e.dataset.date === dateStr); if (dayEvents.length === 0) { agendaEvents.innerHTML = '<p style="opacity: 0.7; text-align: center; padding: 20px;">No events scheduled for this day</p>'; return; } agendaEvents.innerHTML = ''; dayEvents.forEach(eventEl => { const eventDiv = document.createElement('div'); eventDiv.className = 'event'; if (eventEl.classList.contains('event-milestone')) { eventDiv.classList.add('event-milestone'); } eventDiv.innerHTML = `<div class="event-time">${eventEl.dataset.eventTime}</div> <div class="event-title">${eventEl.dataset.eventTitle}</div>`; eventDiv.addEventListener('click', () => { openEventModal(eventEl.dataset.eventTitle, eventEl.dataset.eventTime, eventEl.dataset.eventDetails); }); agendaEvents.appendChild(eventDiv); }); }
-                renderCalendar(); renderEvents(selectedDate.toISOString().split('T')[0]);
+
+                    const firstDay = new Date(currentYear, currentMonth, 1);
+                    const startDate = new Date(firstDay);
+                    startDate.setDate(startDate.getDate() - startDate.getDay());
+
+                    for (let i = 0; i < 42; i++) {
+                        const cellDate = new Date(startDate);
+                        cellDate.setDate(startDate.getDate() + i);
+                        const dateStr = formatDateKey(cellDate);
+                        const dayCell = document.createElement('div');
+                        dayCell.className = 'day-cell';
+                        dayCell.textContent = cellDate.getDate();
+                        if (cellDate.getMonth() !== currentMonth) dayCell.classList.add('other-month');
+                        if (dateStr === formatDateKey(today)) dayCell.classList.add('today');
+                        if (dateStr === formatDateKey(mobileSelectedDate)) dayCell.classList.add('selected');
+                        if (getEventsByDate(dateStr).length > 0) dayCell.classList.add('has-event');
+                        dayCell.addEventListener('click', () => {
+                            mobileSelectedDate = new Date(cellDate);
+                            renderCalendar();
+                            renderEvents(dateStr);
+                        });
+                        monthGrid.appendChild(dayCell);
+                    }
+                }
+
+                function renderEvents(dateStr) {
+                    const dayEvents = getEventsByDate(dateStr);
+                    if (dayEvents.length === 0) {
+                        agendaList.innerHTML = '<p style="opacity: 0.7; text-align: center; padding: 20px;">No events scheduled for this day</p>';
+                        return;
+                    }
+                    agendaList.innerHTML = '';
+                    dayEvents.forEach(eventData => {
+                        agendaList.appendChild(createEventElement(eventData));
+                    });
+                }
+
+                renderCalendar();
+                renderEvents(formatDateKey(mobileSelectedDate));
             }
 
             // --- Event Listeners & Initialization ---
