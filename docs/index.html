@@ -1101,6 +1101,13 @@
             gap: 15px;
             flex: 1 1 auto;
             min-width: 150px;
+            justify-content: space-between;
+        }
+        
+        .nav-buttons-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
         }
         
         .calendar-nav-btn {
@@ -1250,11 +1257,21 @@
             box-shadow: 0 0 15px rgba(0, 169, 157, 0.3);
         }
 
-        .month-day-cell.other-month,
-        .month-day-cell.disabled-day {
+        .month-day-cell.other-month {
             opacity: 0.3;
             pointer-events: none;
             background: transparent;
+        }
+        
+        .month-day-cell.disabled-day {
+            opacity: 0.5;
+            background: transparent;
+            /* Keep clickable - removed pointer-events: none */
+        }
+        
+        .month-day-cell.disabled-day:hover {
+            opacity: 0.7;
+            cursor: pointer;
         }
 
         .month-day-number {
@@ -2204,10 +2221,20 @@
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+            
+            .nav-buttons-group {
+                display: flex;
+                gap: 5px;
             }
 
             .agenda-header h2 {
                 font-size: 1.3rem;
+                flex: 1;
+                text-align: center;
+                min-width: 120px;
             }
             
             .calendar-nav-btn {
@@ -2737,9 +2764,15 @@
                 <div class="desktop-calendar">
                     <div class="agenda-header">
                         <div class="calendar-nav-container">
-                            <button class="calendar-nav-btn" id="prev-week-btn" title="Previous Week"><i class="fas fa-chevron-left"></i></button>
+                            <div class="nav-buttons-group">
+                                <button class="calendar-nav-btn" id="prev-week-btn" title="Previous Week"><i class="fas fa-chevron-left"></i></button>
+                                <button class="calendar-nav-btn" id="next-week-btn" title="Next Week"><i class="fas fa-chevron-right"></i></button>
+                            </div>
                             <h2 id="desktop-calendar-title">October 2025</h2>
-                            <button class="calendar-nav-btn" id="next-week-btn" title="Next Week"><i class="fas fa-chevron-right"></i></button>
+                            <div class="nav-buttons-group">
+                                <button class="calendar-nav-btn" id="prev-month-btn" title="Previous Month"><i class="fas fa-chevron-left"></i></button>
+                                <button class="calendar-nav-btn" id="next-month-btn" title="Next Month"><i class="fas fa-chevron-right"></i></button>
+                            </div>
                         </div>
                         <div class="view-toggle">
                             <button class="view-btn" data-view="today">Today</button>
@@ -2770,9 +2803,15 @@
                 <div class="mobile-calendar">
                      <div class="agenda-header">
                         <div class="calendar-nav-container">
-                            <button class="calendar-nav-btn" id="mobile-prev-week-btn" title="Previous Week"><i class="fas fa-chevron-left"></i></button>
+                            <div class="nav-buttons-group">
+                                <button class="calendar-nav-btn" id="mobile-prev-week-btn" title="Previous Week"><i class="fas fa-chevron-left"></i></button>
+                                <button class="calendar-nav-btn" id="mobile-next-week-btn" title="Next Week"><i class="fas fa-chevron-right"></i></button>
+                            </div>
                             <h2 id="mobile-calendar-title">October 2025</h2>
-                            <button class="calendar-nav-btn" id="mobile-next-week-btn" title="Next Week"><i class="fas fa-chevron-right"></i></button>
+                            <div class="nav-buttons-group">
+                                <button class="calendar-nav-btn" id="mobile-prev-month-btn" title="Previous Month"><i class="fas fa-chevron-left"></i></button>
+                                <button class="calendar-nav-btn" id="mobile-next-month-btn" title="Next Month"><i class="fas fa-chevron-right"></i></button>
+                            </div>
                         </div>
                         <div class="view-toggle">
                             <button class="mobile-view-btn" data-view="today">Today</button>
@@ -4166,7 +4205,20 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
                 ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach((day, index) => { const isWeekend = index === 5 || index === 6; monthGrid.innerHTML += `<div class="month-day-header ${isWeekend ? 'weekend' : ''}">${day}</div>`; });
                 for (let i = 0; i < startingDay; i++) { monthGrid.innerHTML += '<div class="month-day-cell other-month"></div>'; }
                 for (let day = 1; day <= daysInMonth; day++) { const date = new Date(year, month, day); const dayOfWeek = date.getDay(); const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`; const isToday = year === today.getFullYear() && month === today.getMonth() && day === today.getDate(); const isPast = date < todayDateOnly; const isWeekend = dayOfWeek === 5 || dayOfWeek === 6; let cellClasses = 'month-day-cell'; if (isToday) cellClasses += ' today'; if (isPast) cellClasses += ' disabled-day'; if (isWeekend) cellClasses += ' weekend'; let cellHtml = `<div class="${cellClasses}" data-date="${dateStr}"><div class="month-day-number">${day}</div><div class="month-day-events">`; if (eventsByDate.has(dateStr)) { eventsByDate.get(dateStr).forEach(eventEl => { const isMilestone = eventEl.classList.contains('event-milestone'); cellHtml += `<div class="month-event-dot ${isMilestone ? 'milestone' : ''}"></div>`; }); } cellHtml += `</div></div>`; monthGrid.innerHTML += cellHtml; }
-                 monthGrid.querySelectorAll('.month-day-cell:not(.disabled-day, .other-month)').forEach(cell => { const dateStr = cell.dataset.date; cell.addEventListener('click', () => { if (eventsByDate.has(dateStr)) { const firstEvent = eventsByDate.get(dateStr)[0]; openEventModal(firstEvent.dataset.eventTitle, firstEvent.dataset.eventTime, firstEvent.dataset.eventDetails); } else { openDayActionModal(dateStr); } }); });
+                 // Allow clicking on all day cells (including past/disabled days) but keep visual styling
+                 monthGrid.querySelectorAll('.month-day-cell:not(.other-month)').forEach(cell => { 
+                     const dateStr = cell.dataset.date; 
+                     if (!dateStr) return;
+                     cell.style.cursor = 'pointer'; // Make it clear it's clickable
+                     cell.addEventListener('click', () => { 
+                         if (eventsByDate.has(dateStr)) { 
+                             const firstEvent = eventsByDate.get(dateStr)[0]; 
+                             openEventModal(firstEvent.dataset.eventTitle, firstEvent.dataset.eventTime, firstEvent.dataset.eventDetails); 
+                         } else { 
+                             openDayActionModal(dateStr); 
+                         } 
+                     }); 
+                 });
                 updateWeekHeader();
             }
 
@@ -4508,8 +4560,14 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
                  // Desktop navigation
                  const prevWeekBtn = document.getElementById('prev-week-btn');
                  const nextWeekBtn = document.getElementById('next-week-btn');
+                 const prevMonthBtn = document.getElementById('prev-month-btn');
+                 const nextMonthBtn = document.getElementById('next-month-btn');
+                 
+                 // Mobile navigation
                  const mobilePrevWeekBtn = document.getElementById('mobile-prev-week-btn');
                  const mobileNextWeekBtn = document.getElementById('mobile-next-week-btn');
+                 const mobilePrevMonthBtn = document.getElementById('mobile-prev-month-btn');
+                 const mobileNextMonthBtn = document.getElementById('mobile-next-month-btn');
                  
                  function navigateWeek(direction) {
                      currentWeekStart.setDate(currentWeekStart.getDate() + (direction * 7));
@@ -4522,47 +4580,55 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
                      renderDesktopMonthCalendar();
                  }
                  
+                 // Week navigation buttons (always navigate weeks)
                  if (prevWeekBtn) {
                      prevWeekBtn.addEventListener('click', () => {
-                         const activeView = document.querySelector('.view-btn.active');
-                         if (activeView && activeView.dataset.view === 'week') {
-                             navigateWeek(-1);
-                         } else if (activeView && activeView.dataset.view === 'month') {
-                             navigateMonth(-1);
-                         }
+                         navigateWeek(-1);
                      });
                  }
                  
                  if (nextWeekBtn) {
                      nextWeekBtn.addEventListener('click', () => {
-                         const activeView = document.querySelector('.view-btn.active');
-                         if (activeView && activeView.dataset.view === 'week') {
-                             navigateWeek(1);
-                         } else if (activeView && activeView.dataset.view === 'month') {
-                             navigateMonth(1);
-                         }
+                         navigateWeek(1);
                      });
                  }
                  
+                 // Month navigation buttons (always navigate months)
+                 if (prevMonthBtn) {
+                     prevMonthBtn.addEventListener('click', () => {
+                         navigateMonth(-1);
+                     });
+                 }
+                 
+                 if (nextMonthBtn) {
+                     nextMonthBtn.addEventListener('click', () => {
+                         navigateMonth(1);
+                     });
+                 }
+                 
+                 // Mobile week navigation
                  if (mobilePrevWeekBtn) {
                      mobilePrevWeekBtn.addEventListener('click', () => {
-                         const activeView = document.querySelector('.mobile-view-btn.active');
-                         if (activeView && activeView.dataset.view === 'week') {
-                             navigateWeek(-1);
-                         } else if (activeView && activeView.dataset.view === 'month') {
-                             navigateMonth(-1);
-                         }
+                         navigateWeek(-1);
                      });
                  }
                  
                  if (mobileNextWeekBtn) {
                      mobileNextWeekBtn.addEventListener('click', () => {
-                         const activeView = document.querySelector('.mobile-view-btn.active');
-                         if (activeView && activeView.dataset.view === 'week') {
-                             navigateWeek(1);
-                         } else if (activeView && activeView.dataset.view === 'month') {
-                             navigateMonth(1);
-                         }
+                         navigateWeek(1);
+                     });
+                 }
+                 
+                 // Mobile month navigation
+                 if (mobilePrevMonthBtn) {
+                     mobilePrevMonthBtn.addEventListener('click', () => {
+                         navigateMonth(-1);
+                     });
+                 }
+                 
+                 if (mobileNextMonthBtn) {
+                     mobileNextMonthBtn.addEventListener('click', () => {
+                         navigateMonth(1);
                      });
                  }
              }
