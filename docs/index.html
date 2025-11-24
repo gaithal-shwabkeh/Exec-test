@@ -3334,16 +3334,17 @@
             // --- Agenda & Calendar ---
              function setupAgendaInteractions() {
                  document.querySelectorAll('.event').forEach(eventEl => {
-                     eventEl.addEventListener('click', () => {
-                         const title = eventEl.dataset.eventTitle;
-                         const time = eventEl.dataset.eventTime;
-                         const details = eventEl.dataset.eventDetails;
-                         openEventModal(title, time, details);
-                     });
+                    eventEl.addEventListener('click', () => {
+                        const title = eventEl.dataset.eventTitle;
+                        const time = eventEl.dataset.eventTime;
+                        const details = eventEl.dataset.eventDetails;
+                        const dateStr = eventEl.dataset.date;
+                        openEventModal(title, time, details, dateStr);
+                    });
                  });
              }
 
-            function openEventModal(title, time, details) {
+            function openEventModal(title, time, details, dateStr = null) {
                  const titleEl = document.getElementById('event-modal-title');
                 const timeEl = document.getElementById('event-modal-time');
                 const detailsEl = document.getElementById('event-modal-details');
@@ -3357,14 +3358,31 @@
 
                 if (!summarizeBtn || !prepareBtn) return;
 
+                // Check if event is in the past
+                let isPast = false;
+                if (dateStr) {
+                    const eventDate = new Date(dateStr + 'T00:00:00');
+                    const todayDateOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                    isPast = eventDate < todayDateOnly;
+                }
+
                 // Clone and replace buttons to remove old event listeners
                 const newSummarizeBtn = summarizeBtn.cloneNode(true);
                 summarizeBtn.parentNode.replaceChild(newSummarizeBtn, summarizeBtn);
                 const newPrepareBtn = prepareBtn.cloneNode(true);
                 prepareBtn.parentNode.replaceChild(newPrepareBtn, prepareBtn);
 
+                // Hide prepare button for past meetings
+                if (isPast) {
+                    newPrepareBtn.style.display = 'none';
+                } else {
+                    newPrepareBtn.style.display = '';
+                }
+
                 newSummarizeBtn.addEventListener('click', () => {
-                    const prompt = `Please provide a brief summary for my upcoming event: "${title}".`;
+                    const prompt = isPast 
+                        ? `Please provide a brief summary for my past event: "${title}".`
+                        : `Please provide a brief summary for my upcoming event: "${title}".`;
                     switchToAgentAndSendPrompt(prompt);
                 });
                 newPrepareBtn.addEventListener('click', () => {
@@ -4170,6 +4188,11 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
                         const view = button.dataset.view;
                         const calendarContainer = button.closest('.desktop-calendar, .mobile-calendar');
                         if (!calendarContainer) return;
+                        
+                        // Get the previous active view before removing it
+                        const previousActiveButton = calendarContainer.querySelector('[data-view].active');
+                        const previousView = previousActiveButton ? previousActiveButton.dataset.view : null;
+                        
                         calendarContainer.querySelectorAll('[data-view]').forEach(btn => btn.classList.remove('active'));
                         button.classList.add('active');
                         if (calendarContainer.classList.contains('desktop-calendar')) {
@@ -4178,10 +4201,44 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
                             if (targetView) targetView.classList.add('active');
                             if (view === 'month') { renderDesktopMonthCalendar(); }
                             if (view === 'today') { renderTodayView(); updateWeekHeader(); }
-                            if (view === 'week') { renderWeekView(); }
+                            if (view === 'week') { 
+                                // When switching to week view from month view, sync week to current month
+                                if (previousView === 'month') {
+                                    // Set week start to the first Sunday of the current month (or first day if month starts on Sunday)
+                                    const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+                                    const dayOfWeek = firstDayOfMonth.getDay();
+                                    
+                                    // If month doesn't start on Sunday, go to the previous Sunday
+                                    if (dayOfWeek !== 0) {
+                                        const daysToSubtract = dayOfWeek;
+                                        firstDayOfMonth.setDate(firstDayOfMonth.getDate() - daysToSubtract);
+                                    }
+                                    
+                                    currentWeekStart = new Date(firstDayOfMonth);
+                                    currentWeekStart.setHours(0, 0, 0, 0);
+                                }
+                                renderWeekView(); 
+                            }
                         } else {
                             // Mobile calendar view toggle
-                            if (view === 'week') { initMobileCalendar(); }
+                            if (view === 'week') { 
+                                // When switching to week view from month view, sync week to current month
+                                if (previousView === 'month') {
+                                    // Set week start to the first Sunday of the current month (or first day if month starts on Sunday)
+                                    const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+                                    const dayOfWeek = firstDayOfMonth.getDay();
+                                    
+                                    // If month doesn't start on Sunday, go to the previous Sunday
+                                    if (dayOfWeek !== 0) {
+                                        const daysToSubtract = dayOfWeek;
+                                        firstDayOfMonth.setDate(firstDayOfMonth.getDate() - daysToSubtract);
+                                    }
+                                    
+                                    currentWeekStart = new Date(firstDayOfMonth);
+                                    currentWeekStart.setHours(0, 0, 0, 0);
+                                }
+                                initMobileCalendar(); 
+                            }
                             if (view === 'today') { renderTodayView(); updateWeekHeader(); }
                             if (view === 'month') { renderDesktopMonthCalendar(); }
                         }
@@ -4229,7 +4286,7 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
                      cell.addEventListener('click', () => { 
                          if (eventsByDate.has(dateStr)) { 
                              const firstEvent = eventsByDate.get(dateStr)[0]; 
-                             openEventModal(firstEvent.dataset.eventTitle, firstEvent.dataset.eventTime, firstEvent.dataset.eventDetails); 
+                             openEventModal(firstEvent.dataset.eventTitle, firstEvent.dataset.eventTime, firstEvent.dataset.eventDetails, dateStr); 
                          } else if (!isPast) {
                              // Only allow day actions for future/current days
                              openDayActionModal(dateStr); 
@@ -4268,7 +4325,8 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
                      todaysEvents.forEach(eventEl => { 
                          const eventClone = eventEl.cloneNode(true); 
                          eventClone.addEventListener('click', () => { 
-                             openEventModal(eventClone.dataset.eventTitle, eventClone.dataset.eventTime, eventClone.dataset.eventDetails); 
+                             const dateStr = eventClone.dataset.date;
+                             openEventModal(eventClone.dataset.eventTitle, eventClone.dataset.eventTime, eventClone.dataset.eventDetails, dateStr); 
                          }); 
                          todayList.appendChild(eventClone); 
                      }); 
@@ -4334,7 +4392,7 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
                         eventsByDate.get(dateStr).forEach(eventEl => {
                             const eventClone = eventEl.cloneNode(true);
                             eventClone.addEventListener('click', () => {
-                                openEventModal(eventClone.dataset.eventTitle, eventClone.dataset.eventTime, eventClone.dataset.eventDetails);
+                                openEventModal(eventClone.dataset.eventTitle, eventClone.dataset.eventTime, eventClone.dataset.eventDetails, dateStr);
                             });
                             dayColumn.appendChild(eventClone);
                         });
@@ -4444,7 +4502,7 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
                         monthGrid.appendChild(dayCell);
                     }
                 }
-                function renderEvents(dateStr) { const dayEvents = allEvents.filter(e => e.dataset.date === dateStr); if (dayEvents.length === 0) { agendaEvents.innerHTML = '<p style="opacity: 0.7; text-align: center; padding: 20px;">No events scheduled for this day</p>'; return; } agendaEvents.innerHTML = ''; dayEvents.forEach(eventEl => { const eventDiv = document.createElement('div'); eventDiv.className = 'event'; if (eventEl.classList.contains('event-milestone')) { eventDiv.classList.add('event-milestone'); } eventDiv.innerHTML = `<div class="event-time">${eventEl.dataset.eventTime}</div> <div class="event-title">${eventEl.dataset.eventTitle}</div>`; eventDiv.addEventListener('click', () => { openEventModal(eventEl.dataset.eventTitle, eventEl.dataset.eventTime, eventEl.dataset.eventDetails); }); agendaEvents.appendChild(eventDiv); }); }
+                function renderEvents(dateStr) { const dayEvents = allEvents.filter(e => e.dataset.date === dateStr); if (dayEvents.length === 0) { agendaEvents.innerHTML = '<p style="opacity: 0.7; text-align: center; padding: 20px;">No events scheduled for this day</p>'; return; } agendaEvents.innerHTML = ''; dayEvents.forEach(eventEl => { const eventDiv = document.createElement('div'); eventDiv.className = 'event'; if (eventEl.classList.contains('event-milestone')) { eventDiv.classList.add('event-milestone'); } eventDiv.innerHTML = `<div class="event-time">${eventEl.dataset.eventTime}</div> <div class="event-title">${eventEl.dataset.eventTitle}</div>`; eventDiv.addEventListener('click', () => { openEventModal(eventEl.dataset.eventTitle, eventEl.dataset.eventTime, eventEl.dataset.eventDetails, dateStr); }); agendaEvents.appendChild(eventDiv); }); }
                 renderCalendar(); renderEvents(mobileSelectedDate.toISOString().split('T')[0]);
             }
 
@@ -4595,6 +4653,26 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
                  function navigateMonth(direction) {
                      currentMonth.setMonth(currentMonth.getMonth() + direction);
                      renderDesktopMonthCalendar();
+                     
+                     // If on week tab, also update the week view to show the first week of the new month
+                     const activeView = document.querySelector('.view-btn.active, .mobile-view-btn.active');
+                     const view = activeView ? activeView.dataset.view : 'week';
+                     if (view === 'week' || view === 'today') {
+                         // Set week start to the first Sunday of the new month (or first day if month doesn't start on Sunday)
+                         const firstDayOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+                         const dayOfWeek = firstDayOfMonth.getDay();
+                         
+                         // If month doesn't start on Sunday, go to the previous Sunday
+                         if (dayOfWeek !== 0) {
+                             const daysToSubtract = dayOfWeek;
+                             firstDayOfMonth.setDate(firstDayOfMonth.getDate() - daysToSubtract);
+                         }
+                         
+                         currentWeekStart = new Date(firstDayOfMonth);
+                         currentWeekStart.setHours(0, 0, 0, 0);
+                         renderWeekView();
+                         initMobileCalendar();
+                     }
                  }
                  
                  // Function to update button states based on active view (make it accessible)
