@@ -2765,13 +2765,13 @@
                     <div class="agenda-header">
                         <div class="calendar-nav-container">
                             <div class="nav-buttons-group">
+                                <button class="calendar-nav-btn" id="prev-month-btn" title="Previous Month"><i class="fas fa-angle-double-left"></i></button>
                                 <button class="calendar-nav-btn" id="prev-week-btn" title="Previous Week"><i class="fas fa-chevron-left"></i></button>
-                                <button class="calendar-nav-btn" id="next-week-btn" title="Next Week"><i class="fas fa-chevron-right"></i></button>
                             </div>
                             <h2 id="desktop-calendar-title">October 2025</h2>
                             <div class="nav-buttons-group">
-                                <button class="calendar-nav-btn" id="prev-month-btn" title="Previous Month"><i class="fas fa-chevron-left"></i></button>
-                                <button class="calendar-nav-btn" id="next-month-btn" title="Next Month"><i class="fas fa-chevron-right"></i></button>
+                                <button class="calendar-nav-btn" id="next-week-btn" title="Next Week"><i class="fas fa-chevron-right"></i></button>
+                                <button class="calendar-nav-btn" id="next-month-btn" title="Next Month"><i class="fas fa-angle-double-right"></i></button>
                             </div>
                         </div>
                         <div class="view-toggle">
@@ -2804,13 +2804,13 @@
                      <div class="agenda-header">
                         <div class="calendar-nav-container">
                             <div class="nav-buttons-group">
+                                <button class="calendar-nav-btn" id="mobile-prev-month-btn" title="Previous Month"><i class="fas fa-angle-double-left"></i></button>
                                 <button class="calendar-nav-btn" id="mobile-prev-week-btn" title="Previous Week"><i class="fas fa-chevron-left"></i></button>
-                                <button class="calendar-nav-btn" id="mobile-next-week-btn" title="Next Week"><i class="fas fa-chevron-right"></i></button>
                             </div>
                             <h2 id="mobile-calendar-title">October 2025</h2>
                             <div class="nav-buttons-group">
-                                <button class="calendar-nav-btn" id="mobile-prev-month-btn" title="Previous Month"><i class="fas fa-chevron-left"></i></button>
-                                <button class="calendar-nav-btn" id="mobile-next-month-btn" title="Next Month"><i class="fas fa-chevron-right"></i></button>
+                                <button class="calendar-nav-btn" id="mobile-next-week-btn" title="Next Week"><i class="fas fa-chevron-right"></i></button>
+                                <button class="calendar-nav-btn" id="mobile-next-month-btn" title="Next Month"><i class="fas fa-angle-double-right"></i></button>
                             </div>
                         </div>
                         <div class="view-toggle">
@@ -4186,6 +4186,11 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
                             if (view === 'month') { renderDesktopMonthCalendar(); }
                         }
                         updateWeekHeader();
+                        
+                        // Update button states after view change
+                        if (window.updateButtonStates) {
+                            setTimeout(window.updateButtonStates, 50);
+                        }
                     });
                 });
             }
@@ -4205,18 +4210,30 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
                 ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach((day, index) => { const isWeekend = index === 5 || index === 6; monthGrid.innerHTML += `<div class="month-day-header ${isWeekend ? 'weekend' : ''}">${day}</div>`; });
                 for (let i = 0; i < startingDay; i++) { monthGrid.innerHTML += '<div class="month-day-cell other-month"></div>'; }
                 for (let day = 1; day <= daysInMonth; day++) { const date = new Date(year, month, day); const dayOfWeek = date.getDay(); const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`; const isToday = year === today.getFullYear() && month === today.getMonth() && day === today.getDate(); const isPast = date < todayDateOnly; const isWeekend = dayOfWeek === 5 || dayOfWeek === 6; let cellClasses = 'month-day-cell'; if (isToday) cellClasses += ' today'; if (isPast) cellClasses += ' disabled-day'; if (isWeekend) cellClasses += ' weekend'; let cellHtml = `<div class="${cellClasses}" data-date="${dateStr}"><div class="month-day-number">${day}</div><div class="month-day-events">`; if (eventsByDate.has(dateStr)) { eventsByDate.get(dateStr).forEach(eventEl => { const isMilestone = eventEl.classList.contains('event-milestone'); cellHtml += `<div class="month-event-dot ${isMilestone ? 'milestone' : ''}"></div>`; }); } cellHtml += `</div></div>`; monthGrid.innerHTML += cellHtml; }
-                 // Allow clicking on all day cells (including past/disabled days) but keep visual styling
+                 // Allow clicking on day cells - past days only if they have events
                  monthGrid.querySelectorAll('.month-day-cell:not(.other-month)').forEach(cell => { 
                      const dateStr = cell.dataset.date; 
                      if (!dateStr) return;
-                     cell.style.cursor = 'pointer'; // Make it clear it's clickable
+                     
+                     const isPast = cell.classList.contains('disabled-day');
+                     const hasEvents = eventsByDate.has(dateStr);
+                     
+                     // Past days: only clickable if they have events
+                     if (isPast && !hasEvents) {
+                         cell.style.cursor = 'not-allowed';
+                         cell.style.opacity = '0.3';
+                         return; // Don't add click handler
+                     }
+                     
+                     cell.style.cursor = 'pointer';
                      cell.addEventListener('click', () => { 
                          if (eventsByDate.has(dateStr)) { 
                              const firstEvent = eventsByDate.get(dateStr)[0]; 
                              openEventModal(firstEvent.dataset.eventTitle, firstEvent.dataset.eventTime, firstEvent.dataset.eventDetails); 
-                         } else { 
+                         } else if (!isPast) {
+                             // Only allow day actions for future/current days
                              openDayActionModal(dateStr); 
-                         } 
+                         }
                      }); 
                  });
                 updateWeekHeader();
@@ -4580,20 +4597,47 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
                      renderDesktopMonthCalendar();
                  }
                  
-                 // Week navigation buttons (always navigate weeks)
+                 // Function to update button states based on active view (make it accessible)
+                 window.updateButtonStates = function() {
+                     const activeView = document.querySelector('.view-btn.active, .mobile-view-btn.active');
+                     const view = activeView ? activeView.dataset.view : 'week';
+                     const isMonthView = view === 'month';
+                     
+                     // Week buttons - disabled in month view
+                     const weekButtons = [prevWeekBtn, nextWeekBtn, mobilePrevWeekBtn, mobileNextWeekBtn];
+                     weekButtons.forEach(btn => {
+                         if (btn) {
+                             if (isMonthView) {
+                                 btn.disabled = true;
+                                 btn.style.opacity = '0.4';
+                                 btn.style.cursor = 'not-allowed';
+                             } else {
+                                 btn.disabled = false;
+                                 btn.style.opacity = '1';
+                                 btn.style.cursor = 'pointer';
+                             }
+                         }
+                     });
+                 };
+                 
+                 // Week navigation buttons (only work in week/today view)
                  if (prevWeekBtn) {
                      prevWeekBtn.addEventListener('click', () => {
-                         navigateWeek(-1);
+                         if (!prevWeekBtn.disabled) {
+                             navigateWeek(-1);
+                         }
                      });
                  }
                  
                  if (nextWeekBtn) {
                      nextWeekBtn.addEventListener('click', () => {
-                         navigateWeek(1);
+                         if (!nextWeekBtn.disabled) {
+                             navigateWeek(1);
+                         }
                      });
                  }
                  
-                 // Month navigation buttons (always navigate months)
+                 // Month navigation buttons (always work)
                  if (prevMonthBtn) {
                      prevMonthBtn.addEventListener('click', () => {
                          navigateMonth(-1);
@@ -4609,13 +4653,17 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
                  // Mobile week navigation
                  if (mobilePrevWeekBtn) {
                      mobilePrevWeekBtn.addEventListener('click', () => {
-                         navigateWeek(-1);
+                         if (!mobilePrevWeekBtn.disabled) {
+                             navigateWeek(-1);
+                         }
                      });
                  }
                  
                  if (mobileNextWeekBtn) {
                      mobileNextWeekBtn.addEventListener('click', () => {
-                         navigateWeek(1);
+                         if (!mobileNextWeekBtn.disabled) {
+                             navigateWeek(1);
+                         }
                      });
                  }
                  
@@ -4631,6 +4679,16 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
                          navigateMonth(1);
                      });
                  }
+                 
+                 // Update button states when view changes
+                 document.querySelectorAll('.view-toggle').forEach(toggle => {
+                     toggle.addEventListener('click', (e) => {
+                         setTimeout(updateButtonStates, 100); // Small delay to ensure view is updated
+                     });
+                 });
+                 
+                 // Initial state
+                 updateButtonStates();
              }
 
             // --- INITIALIZATION ---
