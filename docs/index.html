@@ -3765,19 +3765,24 @@
                 
                 // Extract time (look for patterns like "at 2pm", "at 14:00", "at 2:00 PM", etc.)
                 const timePatterns = [
-                    /at\s+(\d{1,2}):?(\d{2})?\s*(am|pm)/i,
-                    /at\s+(\d{1,2})\s*(am|pm)/i,
-                    /(\d{1,2}):(\d{2})\s*(am|pm)/i,
-                    /(\d{1,2})\s*(am|pm)/i
+                    { pattern: /at\s+(\d{1,2}):(\d{2})\s*(am|pm)/i, hasMinutes: true, periodIndex: 3 },
+                    { pattern: /at\s+(\d{1,2})\s*(am|pm)/i, hasMinutes: false, periodIndex: 2 },
+                    { pattern: /(\d{1,2}):(\d{2})\s*(am|pm)/i, hasMinutes: true, periodIndex: 3 },
+                    { pattern: /(\d{1,2})\s*(am|pm)/i, hasMinutes: false, periodIndex: 2 }
                 ];
                 
                 let time = '';
-                for (const pattern of timePatterns) {
-                    const match = message.match(pattern);
+                for (const timePattern of timePatterns) {
+                    const match = message.match(timePattern.pattern);
                     if (match) {
                         let hours = parseInt(match[1]);
-                        const minutes = match[2] ? parseInt(match[2]) : 0;
-                        const period = (match[3] || match[2] || '').toUpperCase();
+                        let minutes = 0;
+                        
+                        if (timePattern.hasMinutes && match[2]) {
+                            minutes = parseInt(match[2]) || 0;
+                        }
+                        
+                        const period = (match[timePattern.periodIndex] || '').toUpperCase();
                         
                         if (period === 'PM' && hours !== 12) hours += 12;
                         if (period === 'AM' && hours === 12) hours = 0;
@@ -3850,14 +3855,84 @@
                 return { title, time, date, details, topic };
             }
 
+            // Store pending meeting data when focus area is needed
+            let pendingMeetingData = null;
+
             async function handleSendMessage() {
                 if (!chatInput) return;
                 const userMessage = chatInput.value.trim();
                 if (!userMessage) return;
 
+                // Check if this is a follow-up response to a focus area question
+                if (pendingMeetingData) {
+                    // Check if user provided a focus area
+                    const focusAreas = Array.from(document.querySelectorAll('.topic-card .topic-title')).map(el => el.textContent);
+                    let matchedTopic = '';
+                    
+                    // Try to match user's response to a focus area
+                    for (const area of focusAreas) {
+                        if (userMessage.toLowerCase().includes(area.toLowerCase()) || area.toLowerCase().includes(userMessage.toLowerCase())) {
+                            matchedTopic = area;
+                            break;
+                        }
+                    }
+                    
+                    if (matchedTopic) {
+                        pendingMeetingData.topic = matchedTopic;
+                        pendingMeetingData.title = pendingMeetingData.title || `Meeting: ${matchedTopic}`;
+                        pendingMeetingData.details = `Meeting regarding ${matchedTopic}`;
+                    } else {
+                        // Use the user's message as the topic if no match found
+                        pendingMeetingData.topic = userMessage;
+                        pendingMeetingData.title = pendingMeetingData.title || `Meeting: ${userMessage}`;
+                        pendingMeetingData.details = `Meeting regarding ${userMessage}`;
+                    }
+                    
+                    const success = addMeetingToAgenda(
+                        pendingMeetingData.title,
+                        pendingMeetingData.time,
+                        pendingMeetingData.date,
+                        pendingMeetingData.details,
+                        pendingMeetingData.topic
+                    );
+                    
+                    if (success) {
+                        displayMessage('user', userMessage);
+                        const dateStr = new Date(pendingMeetingData.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+                        const response = `I've added "${pendingMeetingData.title}" to your agenda for ${dateStr} at ${pendingMeetingData.time}. I will consult with stakeholders regarding "${pendingMeetingData.topic}" to ensure all necessary preparations are made.`;
+                        displayMessage('agent', response, currentPersonaId);
+                        chatHistory.push({ role: 'user', parts: [{ text: userMessage }] });
+                        chatHistory.push({ role: 'model', parts: [{ text: response }] });
+                        pendingMeetingData = null;
+                        chatInput.value = '';
+                        return;
+                    }
+                }
+
                 // Check if user wants to add a meeting
                 const meetingData = parseMeetingRequest(userMessage);
                 if (meetingData) {
+                    // Check if focus area is missing
+                    if (!meetingData.topic) {
+                        displayMessage('user', userMessage);
+                        chatHistory.push({ role: 'user', parts: [{ text: userMessage }] });
+                        
+                        // Store the meeting data for follow-up
+                        pendingMeetingData = meetingData;
+                        
+                        // Get available focus areas
+                        const focusAreas = Array.from(document.querySelectorAll('.topic-card .topic-title')).map(el => el.textContent);
+                        const focusAreasList = focusAreas.length > 0 
+                            ? focusAreas.join(', ')
+                            : 'a focus area';
+                        
+                        const prompt = `What focus area would you like this meeting to focus on? Available focus areas: ${focusAreasList}`;
+                        displayMessage('agent', prompt, currentPersonaId);
+                        chatHistory.push({ role: 'model', parts: [{ text: prompt }] });
+                        chatInput.value = '';
+                        return;
+                    }
+                    
                     const success = addMeetingToAgenda(
                         meetingData.title,
                         meetingData.time,
@@ -3868,9 +3943,11 @@
                     
                     if (success) {
                         displayMessage('user', userMessage);
-                        displayMessage('agent', `I've added "${meetingData.title}" to your agenda for ${new Date(meetingData.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} at ${meetingData.time}.`, currentPersonaId);
+                        const dateStr = new Date(meetingData.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+                        const response = `I've added "${meetingData.title}" to your agenda for ${dateStr} at ${meetingData.time}. I will consult with stakeholders regarding "${meetingData.topic}" to ensure all necessary preparations are made.`;
+                        displayMessage('agent', response, currentPersonaId);
                         chatHistory.push({ role: 'user', parts: [{ text: userMessage }] });
-                        chatHistory.push({ role: 'model', parts: [{ text: `I've added "${meetingData.title}" to your agenda for ${new Date(meetingData.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })} at ${meetingData.time}.` }] });
+                        chatHistory.push({ role: 'model', parts: [{ text: response }] });
                         chatInput.value = '';
                         return;
                     }
