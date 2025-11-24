@@ -1215,7 +1215,7 @@
             margin-top: 15px;
             flex-grow: 1;
             min-height: 0;
-            grid-template-rows: auto repeat(6, 1fr); /* Header row + 6 weeks */
+            grid-auto-rows: minmax(100px, 1fr); /* Auto rows for all weeks */
             overflow-y: auto;
             overflow-x: hidden;
         }
@@ -4610,6 +4610,25 @@ RESPOND ONLY WITH VALID JSON. NO OTHER TEXT.`;
                                 openEventModal(eventEl.dataset.eventTitle, eventEl.dataset.eventTime, eventEl.dataset.eventDetails, dateStr, eventEl);
                             });
                             dayColumn.appendChild(eventDiv);
+                        });
+                    }
+                    
+                    // Add click handler to day column for booking meetings on empty days
+                    const isPast = new Date(dateStr + 'T00:00:00') < todayDateOnly;
+                    if (!isPast || eventsByDate.has(dateStr)) {
+                        dayColumn.style.cursor = 'pointer';
+                        dayColumn.addEventListener('click', (e) => {
+                            // Only trigger if clicking on the column itself, not on an event
+                            if (e.target === dayColumn || e.target === dayHeader || e.target.closest('.day-header')) {
+                                if (eventsByDate.has(dateStr)) {
+                                    // If there are events, open the first one
+                                    const firstEvent = eventsByDate.get(dateStr)[0];
+                                    openEventModal(firstEvent.dataset.eventTitle, firstEvent.dataset.eventTime, firstEvent.dataset.eventDetails, dateStr, firstEvent);
+                                } else {
+                                    // If no events, open day action modal to book a meeting
+                                    openDayActionModal(dateStr);
+                                }
+                            }
                         });
                     }
                     
